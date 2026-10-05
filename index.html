@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>한국 등산 계획 대시보드</title>
+  <style>
+    :root {
+      --green-dark: #1a3a2a;
+      --green-mid: #2d6a4f;
+      --green-light: #52b788;
+      --green-pale: #b7e4c7;
+      --cream: #f8f5f0;
+      --card-bg: #ffffff;
+      --text: #1c1c1c;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+    /* ── 헤더 ── */
+    header { background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%); color: #fff; padding: 32px 40px 28px; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+    .header-left { flex: 1; min-width: 0; }
+    header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+    header p { margin-top: 6px; font-size: 14px; opacity: 0.75; }
+    header .stats { display: flex; gap: 32px; margin-top: 24px; flex-wrap: wrap; }
+    header .stat-item { display: flex; flex-direction: column; }
+    header .stat-num { font-size: 26px; font-weight: 700; color: var(--green-pale); }
+    header .stat-label { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+    .progress-wrap { margin-top: 20px; max-width: 400px; }
+    .progress-label { font-size: 12px; opacity: 0.8; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .progress-bar-bg { height: 8px; background: rgba(255,255,255,0.2); border-radius: 99px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--green-pale); border-radius: 99px; transition: width 0.4s ease; }
+
+    /* ── 날씨 위젯 ── */
+    .weather-widget { flex-shrink: 0; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 20px 24px; min-width: 200px; text-align: center; backdrop-filter: blur(4px); }
+    .weather-location { font-size: 12px; opacity: 0.75; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .weather-icon { font-size: 48px; line-height: 1; margin: 4px 0; }
+    .weather-desc { font-size: 14px; font-weight: 600; margin-top: 4px; }
+    .weather-temp { font-size: 36px; font-weight: 700; color: var(--green-pale); line-height: 1; margin: 8px 0 4px; }
+    .weather-meta { display: flex; gap: 12px; justify-content: center; font-size: 12px; opacity: 0.8; margin-top: 8px; }
+    .weather-meta span { display: flex; align-items: center; gap: 3px; }
+    .weather-loading { font-size: 13px; opacity: 0.7; padding: 20px 0; }
+    .weather-date { font-size: 11px; opacity: 0.6; margin-top: 10px; }
+
+    /* ── 탭 바 ── */
+    .tab-bar-wrap { background: #fff; border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .tab-bar { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; }
+    .tab-btn { padding: 14px 22px; border: none; background: none; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; }
+    .tab-btn:hover { color: var(--green-dark); }
+    .tab-btn.active { color: var(--green-mid); border-bottom-color: var(--green-mid); }
+
+    /* ── 레이아웃 ── */
+    main { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    #panel-home.active { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); padding: 24px; }
+    .card-title { font-size: 15px; font-weight: 700; color: var(--green-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .card-title .icon { width: 28px; height: 28px; background: var(--green-pale); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .full-width { grid-column: 1 / -1; }
+
+    /* ── 목표 단계 ── */
+    .goal-steps { display: flex; flex-direction: column; gap: 12px; }
+    .goal-step { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 8px; background: var(--cream); }
+    .step-badge { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+    .step-badge.lv1 { background: var(--green-light); }
+    .step-badge.lv2 { background: var(--green-mid); }
+    .step-badge.lv3 { background: #1b6ca8; }
+    .step-badge.lv4 { background: #9b2226; }
+    .step-content h4 { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+    .step-content p { font-size: 12px; color: var(--muted); }
+
+    /* ── 로드맵 ── */
+    .roadmap { display: flex; flex-direction: column; }
+    .roadmap-item { display: flex; gap: 16px; align-items: flex-start; padding-bottom: 20px; position: relative; }
+    .roadmap-item:not(:last-child)::before { content: ''; position: absolute; left: 15px; top: 32px; bottom: 0; width: 2px; background: var(--green-pale); }
+    .roadmap-dot { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--green-mid); border: 3px solid var(--green-pale); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700; z-index: 1; }
+    .roadmap-body h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .roadmap-body p { font-size: 12px; color: var(--muted); }
+    .tag { display: inline-block; background: var(--green-pale); color: var(--green-dark); border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 600; margin-right: 4px; margin-top: 4px; }
+
+    /* ── 필터 ── */
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .filter-btn { padding: 5px 14px; border-radius: 99px; border: 1.5px solid var(--border); background: #fff; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .filter-btn:hover { border-color: var(--green-light); color: var(--green-dark); }
+    .filter-btn.active { background: var(--green-mid); border-color: var(--green-mid); color: #fff; }
+    tr.hidden-row { display: none; }
+
+    /* ── 테이블 ── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { background: var(--green-dark); color: #fff; }
+    thead th { padding: 10px 12px; text-align: left; font-weight: 600; font-size: 12px; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:hover { background: #f0faf4; }
+    tbody td { padding: 10px 12px; vertical-align: middle; }
+    .col-check { width: 40px; text-align: center; }
+    input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green-mid); cursor: pointer; }
+    .badge-diff { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+    .diff-1 { background: #d1fae5; color: #065f46; }
+    .diff-2 { background: #fef9c3; color: #854d0e; }
+    .diff-3 { background: #fee2e2; color: #991b1b; }
+    tbody tr.done td { opacity: 0.45; text-decoration: line-through; }
+    tbody tr.done td:first-child { text-decoration: none; opacity: 1; }
+
+    /* ── 코스 상세 ── */
+    .course-row td { padding: 0 !important; border-bottom: 2px solid var(--green-light); }
+    .course-detail { display: none; background: #f0faf4; padding: 16px 20px; font-size: 12px; }
+    .course-detail.open { display: block; }
+    .course-detail h5 { font-size: 13px; font-weight: 700; color: var(--green-dark); margin-bottom: 10px; }
+    .course-list { display: flex; flex-direction: column; gap: 8px; }
+    .course-item { padding: 8px 12px; background: #fff; border-radius: 6px; border-left: 3px solid var(--green-light); display: flex; align-items: flex-start; gap: 10px; cursor: pointer; transition: background 0.15s; }
+    .course-item:hover { background: #f0fdf4; }
+    .course-item .c-text { flex: 1; min-width: 0; }
+    .course-item .c-name { font-weight: 700; color: var(--green-dark); display: block; }
+    .course-item .c-info { color: var(--muted); }
+    .course-item input[type="checkbox"] { flex-shrink: 0; margin-top: 3px; width: 15px; height: 15px; accent-color: var(--green-mid); cursor: pointer; }
+    .course-item.course-done { border-left-color: #9ca3af; background: #f9fafb; }
+    .course-item.course-done .c-name { text-decoration: line-through; opacity: 0.45; }
+    .course-item.course-done .c-info { opacity: 0.35; }
+    .course-counter { font-size: 12px; font-weight: 500; color: var(--green-light); margin-left: 8px; vertical-align: middle; }
+    tbody tr[data-key] > td:not(.col-check) { cursor: pointer; }
+
+    /* ── 산 카드 그리드 ── */
+    .mt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .mt-card { background: #fff; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; transition: box-shadow 0.2s, transform 0.15s; }
+    .mt-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12); transform: translateY(-1px); }
+    .mt-card.hidden-row { display: none; }
+
+    .mtc-stripe { height: 5px; flex-shrink: 0; }
+    .mt-card.diff-1 .mtc-stripe { background: var(--green-light); }
+    .mt-card.diff-2 .mtc-stripe { background: #f59e0b; }
+    .mt-card.diff-3 .mtc-stripe { background: #ef4444; }
+
+    .mtc-body { padding: 16px 18px 14px; flex: 1; }
+    .mtc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .mtc-check-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; min-width: 0; }
+    .mtc-check-wrap input[type="checkbox"] { flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--green-mid); }
+    .mtc-name { font-size: 17px; font-weight: 700; color: var(--green-dark); line-height: 1.2; }
+    .mtc-height { font-size: 24px; font-weight: 700; color: var(--green-mid); margin: 6px 0 10px; line-height: 1; }
+    .mtc-meta { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    .mtc-meta span { display: flex; align-items: flex-start; gap: 4px; }
+
+    .mtc-toggle { width: 100%; padding: 10px 16px; background: var(--cream); border: none; border-top: 1px solid var(--border); cursor: pointer; font-size: 12px; font-weight: 600; color: var(--green-dark); display: flex; align-items: center; justify-content: space-between; gap: 8px; transition: background 0.15s; flex-shrink: 0; }
+    .mtc-toggle:hover { background: #e8f5ee; }
+    .mtc-toggle-left { display: flex; align-items: center; gap: 6px; }
+    .mtc-course-count { background: var(--green-pale); color: var(--green-dark); border-radius: 99px; padding: 1px 8px; font-size: 11px; }
+    .mtc-arrow { transition: transform 0.25s; font-size: 11px; opacity: 0.6; }
+    .mt-card.expanded .mtc-arrow { transform: rotate(180deg); }
+
+    .mt-card.done .mtc-name { text-decoration: line-through; opacity: 0.5; }
+    .mt-card.done .mtc-height { opacity: 0.4; }
+    .mt-card.done .mtc-stripe { filter: grayscale(0.6); }
+
+    @media (max-width: 1100px) { .mt-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 680px)  { .mt-grid { grid-template-columns: 1fr; } }
+
+    /* ── 50대 명산 컴팩트 테이블 ── */
+    .compact-table { font-size: 12px; }
+    .compact-table thead tr { background: #374151; }
+    .compact-table thead th { padding: 8px 10px; font-size: 11px; }
+    .compact-table thead th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    .compact-table thead th.sortable:hover { background: #4b5563; }
+    .compact-table thead th.sort-asc::after  { content: ' ▲'; opacity: 0.9; }
+    .compact-table thead th.sort-desc::after { content: ' ▼'; opacity: 0.9; }
+    .compact-table tbody td { padding: 7px 10px; }
+    .compact-table .rank { color: var(--muted); font-size: 11px; }
+
+    /* ── 특색·교통 인포 블록 ── */
+    .mt-info { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid var(--border); }
+    .mt-info-row { display: flex; gap: 8px; font-size: 12px; align-items: flex-start; }
+    .mi-label { flex-shrink: 0; font-weight: 700; color: var(--green-dark); min-width: 52px; }
+
+    /* ── 시즌 ── */
+    .seasons { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .season-card { border-radius: 12px; padding: 20px; color: #fff; }
+    .season-card.spring { background: linear-gradient(135deg, #f472b6, #fb923c); }
+    .season-card.summer { background: linear-gradient(135deg, #059669, #10b981); }
+    .season-card.fall   { background: linear-gradient(135deg, #d97706, #ef4444); }
+    .season-card.winter { background: linear-gradient(135deg, #2563eb, #7c3aed); }
+    .season-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+    .season-card ul { list-style: none; font-size: 12px; }
+    .season-card li { padding: 4px 0; opacity: 0.92; display: flex; align-items: flex-start; gap: 4px; }
+    .season-card li::before { content: '▸'; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── 팁 / 체크리스트 ── */
+    .tips { display: flex; flex-direction: column; gap: 10px; }
+    .tip-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px; background: var(--cream); border-radius: 8px; font-size: 12px; }
+    .tip-icon { font-size: 16px; flex-shrink: 0; }
+    .tip-item strong { display: block; font-size: 13px; margin-bottom: 2px; }
+    label.done span { text-decoration: line-through; color: var(--muted); }
+
+    @media (max-width: 900px) {
+      #panel-home.active { grid-template-columns: 1fr !important; }
+      .seasons { grid-template-columns: 1fr 1fr; }
+      header { flex-direction: column; padding: 24px 20px 20px; }
+      .weather-widget { width: 100%; }
+      .tab-btn { padding: 12px 14px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>🏔 한국 등산 계획 대시보드</h1>
+    <p>한국의 명산을 단계별로 정복하는 나만의 등산 로드맵</p>
+    <div class="stats">
+      <div class="stat-item"><span class="stat-num">50</span><span class="stat-label">목표 명산 수</span></div>
+      <div class="stat-item"><span class="stat-num" id="done-count">0</span><span class="stat-label">완등한 산</span></div>
+      <div class="stat-item"><span class="stat-num">1,947m</span><span class="stat-label">최고봉 한라산</span></div>
+      <div class="stat-item"><span class="stat-num">4단계</span><span class="stat-label">목표 레벨</span></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>등반 진행률</span><span id="progress-text">0 / 50</span></div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="weather-widget" id="weather-widget">
+    <div class="weather-loading">📡 날씨 불러오는 중…</div>
+  </div>
+</header>
+
+<div class="tab-bar-wrap">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="home">🏠 홈</button>
+    <button class="tab-btn" data-tab="detail">⛰ 추천 산</button>
+    <button class="tab-btn" data-tab="list">📋 50대 명산</button>
+    <button class="tab-btn" data-tab="season">🗓 시즌</button>
+  </div>
+</div>
+
+<main>
+
+<div class="tab-panel active" id="panel-home">
+
+<!-- 목표 단계 -->
+<div class="card">
+  <div class="card-title"><div class="icon">🎯</div> 등산 목표 단계</div>
+  <div class="goal-steps">
+    <div class="goal-step"><div class="step-badge lv1">입문</div><div class="step-content"><h4>동네 야산 → 100대 명산 입문</h4><p>왕복 3시간 이내 · 고도차 500m 미만</p></div></div>
+    <div class="goal-step"><div class="step-badge lv2">초급</div><div class="step-content"><h4>국립공원 주요 봉우리 완등</h4><p>왕복 4~6시간 · 관악산·계룡산·북한산 수준</p></div></div>
+    <div class="goal-step"><div class="step-badge lv3">중급</div><div class="step-content"><h4>설악산·지리산 주능선 종주</h4><p>하루 8시간+ · 고도차 1,000m 이상 · 암릉 포함</p></div></div>
+    <div class="goal-step"><div class="step-badge lv4">고급</div><div class="step-content"><h4>지리산 1박2일 · 백두대간 구간 종주</h4><p>장거리 종주 · 야간 산행 · 완전 자립</p></div></div>
+  </div>
+</div>
+
+<!-- 로드맵 -->
+<div class="card">
+  <div class="card-title"><div class="icon">🗺</div> 등반 로드맵</div>
+  <div class="roadmap">
+    <div class="roadmap-item"><div class="roadmap-dot">1</div><div class="roadmap-body"><h4>서울·경기 워밍업</h4><p>관악산 · 북한산 · 도봉산 — 체력 점검, 장비 테스트</p><span class="tag">초급</span></div></div>
+    <div class="roadmap-item"><div class="roadmap-dot">2</div><div class="roadmap-body"><h4>충청·호남권 중간 목표</h4><p>계룡산 · 소백산 · 내장산 — 계절감 체험</p><span class="tag">초~중급</span></div></div>
+    <div class="roadmap-item"><div class="roadmap-dot">3</div><div class="roadmap-body"><h4>고산 적응 (1,500m+)</h4><p>덕유산 · 오대산 · 치악산 · 태백산</p><span class="tag">중급</span></div></div>
+    <div class="roadmap-item"><div class="roadmap-dot">4</div><div class="roadmap-body"><h4>설악산 공룡능선 (암릉 도전)</h4><p>한국 최고 암릉 코스 — 기술·체력 통합</p><span class="tag">고급</span></div></div>
+    <div class="roadmap-item"><div class="roadmap-dot">5</div><div class="roadmap-body"><h4>지리산 종주 + 한라산 최종 완등</h4><p>양대 명산 완등 — 최종 목표</p><span class="tag">고급</span></div></div>
+  </div>
+</div>
+
+</div><!-- /panel-home -->
+
+<div class="tab-panel" id="panel-detail">
+<!-- 상세 정보 테이블 -->
+<div class="card full-width">
+  <div class="card-title"><div class="icon">⛰</div> 추천 산 상세 정보 (클릭 → 코스 펼치기)</div>
+  <div class="filter-bar" id="detail-filter">
+    <button class="filter-btn active" data-region="all">전체</button>
+    <button class="filter-btn" data-region="seoul">서울·경기</button>
+    <button class="filter-btn" data-region="gangwon">강원</button>
+    <button class="filter-btn" data-region="chung">충청</button>
+    <button class="filter-btn" data-region="south">경상·전라</button>
+    <button class="filter-btn" data-region="jeju">제주</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="col-check">완등</th>
+        <th>산 이름</th><th>높이</th><th>위치</th><th>난이도</th><th>대표 코스</th><th>왕복</th><th>최적 시즌</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- 서울·경기 -->
+      <tr data-key="gwanak" data-region="seoul">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="gwanak"></td>
+        <td><strong>관악산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>629m</td><td>서울·경기</td><td><span class="badge-diff diff-1">초급</span></td>
+        <td>사당역 → 연주대</td><td>3~4h</td><td>데일리 훈련산</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-gwanak">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>서울 남쪽 도심 접근성 최고. 기암 암봉 연주대에서 서울 전체 조망. 봄 철쭉·가을 단풍 수려. 계곡·능선 코스 다양.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>지하철 2호선 낙성대역·서울대입구역 / 4호선 사당역에서 도보 15~20분. 과천은 4호선 과천역.</span></div>
+        </div>
+        <h5>관악산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">사당역 → 연주대</span><span class="c-info">왕복 8km · 3~4h · 지하철 접근 최편리 · 능선 경유</span></div>
+          <div class="course-item"><span class="c-name">서울대 정문 → 연주대</span><span class="c-info">왕복 7km · 3h · 완만한 숲길 · 대중적</span></div>
+          <div class="course-item"><span class="c-name">과천 → 연주대</span><span class="c-info">왕복 8km · 3~4h · 계단 많음 · 경관 좋음</span></div>
+          <div class="course-item"><span class="c-name">안양 → 삼성산 → 연주대 (종주)</span><span class="c-info">편도 12km · 5h · 종주형 · 경기 안양에서 출발</span></div>
+          <div class="course-item"><span class="c-name">관악산공원 → 깔딱고개 → 연주대</span><span class="c-info">왕복 6km · 2.5h · 짧고 가파름 · 빠른 정상 도달</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="bukhan" data-region="seoul">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="bukhan"></td>
+        <td><strong>북한산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>836m</td><td>서울·경기</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>도선사 → 백운봉</td><td>4~5h</td><td>봄 분무, 가을 단풍</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-bukhan">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>세계에서 단위 면적당 탐방객 가장 많은 국립공원. 백운봉·인수봉·만경봉 화강암 3봉 장관. 비봉능선에서 서울 전경 조망.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>지하철 3호선 불광역 / 4호선 수유역·미아사거리역 / 우이신설선 북한산우이역. 진입로 다수(구기동·정릉·불광·도선사 등).</span></div>
+        </div>
+        <h5>북한산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">도선사 → 백운봉 (인수능선)</span><span class="c-info">왕복 8km · 4~5h · 암릉 구간 포함 · 중급 이상</span></div>
+          <div class="course-item"><span class="c-name">북한산성 대서문 → 백운봉</span><span class="c-info">왕복 9km · 5h · 역사 탐방 + 정상 · 무난한 코스</span></div>
+          <div class="course-item"><span class="c-name">불광역 → 족두리봉 → 비봉 → 사모바위 (비봉능선)</span><span class="c-info">편도 8km · 4h · 조망 최고 · 능선 종주형</span></div>
+          <div class="course-item"><span class="c-name">구기계곡 → 비봉 → 문수봉</span><span class="c-info">왕복 9km · 4~5h · 계곡 + 능선 · 여름 추천</span></div>
+          <div class="course-item"><span class="c-name">정릉 → 보현봉 → 문수봉</span><span class="c-info">왕복 8km · 4h · 동쪽 진입 · 덜 붐빔</span></div>
+          <div class="course-item"><span class="c-name">진관사 → 의상능선 → 백운봉</span><span class="c-info">왕복 11km · 5~6h · 날카로운 암릉 · 고급</span></div>
+          <div class="course-item"><span class="c-name">우이동 → 영봉 (도봉산)</span><span class="c-info">왕복 5km · 3h · 북한산 국립공원 내 · 초급</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="dobong" data-region="seoul">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="dobong"></td>
+        <td><strong>도봉산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>740m</td><td>서울·경기</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>도봉산역 → 자운봉</td><td>4~5h</td><td>봄 진달래, 가을 단풍</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-dobong">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>자운봉·만장봉·선인봉 날카로운 화강암 봉우리. 암벽 등반 성지. 봄 진달래와 가을 단풍이 아름답고 북한산 국립공원 내 위치.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>지하철 1·7호선 도봉산역에서 도보 10분. 망월사 방향은 의정부 경전철 망월사역 이용 가능.</span></div>
+        </div>
+        <h5>도봉산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">도봉탐방지원센터 → 도봉산(포대능선) → 자운봉</span><span class="c-info">왕복 8km · 4~5h · 기본 코스 · 암릉 일부</span></div>
+          <div class="course-item"><span class="c-name">망월사 → 포대능선 → 자운봉</span><span class="c-info">왕복 9km · 4~5h · 능선 종주 · 조망 좋음</span></div>
+          <div class="course-item"><span class="c-name">송추 → 오봉 → 우이암</span><span class="c-info">편도 8km · 4h · 경기 양주 접근 · 여성봉 연계 가능</span></div>
+          <div class="course-item"><span class="c-name">우이동 → 우이암 → 만장봉</span><span class="c-info">왕복 6km · 3h · 초~중급 · 북한산 연계 가능</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="cheonggye" data-region="seoul">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="cheonggye"></td>
+        <td><strong>청계산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>618m</td><td>경기 과천·성남</td><td><span class="badge-diff diff-1">초급</span></td>
+        <td>원터골 → 매봉</td><td>3~4h</td><td>봄 꽃, 가을 단풍</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-cheonggye">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>완만하고 울창한 숲길로 가족·초보 등산 최적. 매봉 정상에서 서울 남부 조망. 봄 꽃·가을 단풍 수려. 성남·과천 경계.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>신분당선 청계산입구역 도보 15분. 4호선 인덕원역에서 버스(11-2, 광역버스). 강남에서 버스 이용 가능.</span></div>
+        </div>
+        <h5>청계산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">원터골 → 매봉 (정상)</span><span class="c-info">왕복 6km · 2.5~3h · 가장 대중적 · 편안한 숲길</span></div>
+          <div class="course-item"><span class="c-name">청계산입구역 → 옥녀봉 → 매봉</span><span class="c-info">왕복 8km · 3~4h · 지하철 접근 편리 · 완만</span></div>
+          <div class="course-item"><span class="c-name">인덕원역 → 망경대 → 매봉</span><span class="c-info">왕복 9km · 4h · 서쪽 코스 · 조용함</span></div>
+          <div class="course-item"><span class="c-name">판교 → 이수봉 → 매봉 (종주)</span><span class="c-info">편도 10km · 4h · 성남 접근 · 이수봉 조망 좋음</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="surak" data-region="seoul">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="surak"></td>
+        <td><strong>수락산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>638m</td><td>서울 노원·의정부</td><td><span class="badge-diff diff-1">초급</span></td>
+        <td>당고개역 → 정상</td><td>3~4h</td><td>연중 · 봄 철쭉</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-surak">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>기차바위 능선에서 조망이 탁월. 서울 노원·경기 의정부 경계. 불암산과 연계 종주 가능. 암봉 구간이 있어 적당한 스릴.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>지하철 7호선 수락산역·당고개역에서 도보 10분. 의정부 방향은 경전철 장암역 이용.</span></div>
+        </div>
+        <h5>수락산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">당고개역 → 주봉 (정상)</span><span class="c-info">왕복 6km · 3h · 서울 접근 · 암봉 구간 존재</span></div>
+          <div class="course-item"><span class="c-name">수락산역 → 기차바위 → 주봉</span><span class="c-info">왕복 7km · 3~4h · 기차바위 전망 탁월</span></div>
+          <div class="course-item"><span class="c-name">의정부 장암역 → 주봉</span><span class="c-info">왕복 6km · 3h · 의정부 접근 · 불암산 연계 가능</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="inwang" data-region="seoul">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="inwang"></td>
+        <td><strong>인왕산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>338m</td><td>서울 종로</td><td><span class="badge-diff diff-1">초급</span></td>
+        <td>사직공원 → 정상</td><td>2~3h</td><td>도심 야경, 분무</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-inwang">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>서울 도심 속 화강암 암봉. 한양도성이 능선을 따라 이어짐. 범바위·기차바위 등 기암. 야간 도심 야경 조망 포인트로도 유명.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>지하철 3호선 경복궁역에서 도보 20분 또는 독립문역에서 도보 15분. 서울 도심이라 버스 접근도 쉬움.</span></div>
+        </div>
+        <h5>인왕산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">사직공원 → 정상 → 창의문</span><span class="c-info">편도 3km · 1.5~2h · 도심 속 암봉 · 한양도성 따라 걷기</span></div>
+          <div class="course-item"><span class="c-name">독립문역 → 무악재 → 정상</span><span class="c-info">왕복 5km · 2h · 서쪽 접근 · 조용한 코스</span></div>
+          <div class="course-item"><span class="c-name">경복궁 → 인왕산 → 북악산 연계</span><span class="c-info">편도 8km · 4h · 서울 성곽 전체 종주 · 역사 탐방</span></div>
+        </div>
+      </div></td></tr>
+
+      <!-- 강원 -->
+      <tr data-key="seorak" data-region="gangwon">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="seorak"></td>
+        <td><strong>설악산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,708m</td><td>강원 속초</td><td><span class="badge-diff diff-3">고급</span></td>
+        <td>오색 → 대청봉</td><td>8~9h</td><td>10월 단풍, 겨울 설경</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-seorak">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>한국 3대 명산. 내·외설악 구분. 공룡능선 암릉은 국내 최고 난이도 코스. 10월 단풍 전국 1위. 울산바위·천불동계곡 등 명소 다수.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>서울 동서울·강남터미널 → 속초 버스(약 2.5~3h). 속초시내 → 소공원(7번 버스) / 오색(버스). KTX 강릉역 → 속초 버스 환승도 가능.</span></div>
+        </div>
+        <h5>설악산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">오색 → 대청봉</span><span class="c-info">왕복 12km · 8~9h · 가장 짧은 정상 코스 · 경사 급함</span></div>
+          <div class="course-item"><span class="c-name">소공원 → 비선대 → 천불동계곡 → 희운각 → 대청봉</span><span class="c-info">왕복 18km · 11~12h · 설악의 진수 · 고급</span></div>
+          <div class="course-item"><span class="c-name">공룡능선 (오색~희운각~공룡~비선대)</span><span class="c-info">편도 15km · 10~12h · 한국 최고 암릉 · 고급 이상</span></div>
+          <div class="course-item"><span class="c-name">한계령 → 대청봉</span><span class="c-info">왕복 10km · 7~8h · 서북능선 · 덜 붐빔</span></div>
+          <div class="course-item"><span class="c-name">소공원 → 울산바위</span><span class="c-info">왕복 7km · 3~4h · 중급 · 거대 암봉 조망 · 계단 많음</span></div>
+          <div class="course-item"><span class="c-name">백담사 → 수렴동 → 봉정암 → 대청봉</span><span class="c-info">편도 17km · 1박2일 추천 · 내설악 깊은 계곡 경유</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="odae" data-region="gangwon">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="odae"></td>
+        <td><strong>오대산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,563m</td><td>강원 평창</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>월정사 → 비로봉</td><td>5~6h</td><td>가을 단풍, 설경</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-odae">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>불교 성지(월정사·상원사·적멸보궁). 1km 전나무 숲길이 백미. 고산 초원과 겨울 눈꽃도 아름다움. 청정 자연 보존 수준 높음.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>KTX 진부(오대산)역에서 버스 20분(월정사 방향). 동서울터미널 → 진부 버스 후 환승. 자가용은 영동고속도로 진부IC.</span></div>
+        </div>
+        <h5>오대산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">월정사 → 상원사 → 비로봉</span><span class="c-info">왕복 14km · 5~6h · 전나무 숲 경유 · 가장 인기</span></div>
+          <div class="course-item"><span class="c-name">상원사 주차장 → 비로봉</span><span class="c-info">왕복 5km · 3h · 단축 코스 · 차량 이동 후 진입</span></div>
+          <div class="course-item"><span class="c-name">동피골 → 두로봉 → 비로봉 (능선 종주)</span><span class="c-info">편도 14km · 6~7h · 오대산 주능선 전체 종주</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="chiaksan" data-region="gangwon">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="chiaksan"></td>
+        <td><strong>치악산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,288m</td><td>강원 원주</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>구룡사 → 비로봉</td><td>6~7h</td><td>단풍, 설경</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-chiaksan">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>강원 원주의 진산. 구룡사 단풍이 가을에 붉고 화려함. 상원사·세렴폭포 등 볼거리 풍부. 경사가 급해 성취감이 큼.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>KTX·무궁화 원주역에서 시내버스 구룡사 방향(30분). 또는 원주시외버스터미널 → 구룡사 버스. 자가용은 영동고속도로 새말IC.</span></div>
+        </div>
+        <h5>치악산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">구룡사 → 세렴폭포 → 비로봉</span><span class="c-info">왕복 12km · 6~7h · 대표 코스 · 폭포 경유</span></div>
+          <div class="course-item"><span class="c-name">황골 → 비로봉</span><span class="c-info">왕복 10km · 5~6h · 남쪽 코스 · 가파르지만 짧음</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="taebaek" data-region="gangwon">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="taebaek"></td>
+        <td><strong>태백산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,567m</td><td>강원 태백</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>유일사 → 천제단</td><td>4~5h</td><td>겨울 설경, 눈꽃 ⭐</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-taebaek">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>겨울 눈꽃·주목 군락이 전국 최고. 능선이 완만해 눈 쌓여도 초보 접근 가능. 정상 천제단(고산 제단)은 단군 신앙의 성지.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>청량리역 → 무궁화호 태백역(약 3.5h). 태백역에서 버스·택시로 당골광장(15분). 자가용은 중앙고속도로 제천IC → 38번 국도.</span></div>
+        </div>
+        <h5>태백산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">유일사 → 천제단 (정상)</span><span class="c-info">왕복 8km · 4~5h · 대표 코스 · 완만한 능선</span></div>
+          <div class="course-item"><span class="c-name">당골 → 반재 → 천제단</span><span class="c-info">왕복 9km · 4~5h · 설경 명소 · 겨울 눈꽃 최고</span></div>
+          <div class="course-item"><span class="c-name">백단사 → 문수봉 → 천제단</span><span class="c-info">왕복 11km · 5~6h · 능선 전망 · 조용한 코스</span></div>
+        </div>
+      </div></td></tr>
+
+      <!-- 충청 -->
+      <tr data-key="sobaek" data-region="chung">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="sobaek"></td>
+        <td><strong>소백산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,439m</td><td>경북·충북</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>희방사 → 비로봉</td><td>5~6h</td><td>5월 철쭉, 분무</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-sobaek">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>5월 비로봉 철쭉이 압도적인 명소. 부드럽고 넓은 능선 초원이 특징. 여름 분무(운해)가 신비로움. 천문대·희방폭포 볼거리.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>KTX 풍기역에서 버스 희방사 방향(20분). 무궁화 단양역에서 죽령 방향 버스. 자가용은 중앙고속도로 풍기IC.</span></div>
+        </div>
+        <h5>소백산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">희방사 → 연화봉 → 비로봉</span><span class="c-info">왕복 13km · 5~6h · 5월 철쭉 명소 · 대표 코스</span></div>
+          <div class="course-item"><span class="c-name">죽령 → 연화봉 → 비로봉</span><span class="c-info">왕복 8km · 4~5h · 짧고 조망 좋음</span></div>
+          <div class="course-item"><span class="c-name">어의곡 → 국망봉 → 비로봉 (종주)</span><span class="c-info">편도 14km · 7h · 소백산 전체 능선 종주</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="gyeryong" data-region="chung">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="gyeryong"></td>
+        <td><strong>계룡산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>845m</td><td>충남 공주</td><td><span class="badge-diff diff-1">초급</span></td>
+        <td>동학사 → 삼불봉 → 신원사</td><td>4~5h</td><td>분무, 10월 단풍</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-gyeryong">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>충남 대표 명산. 동학사·갑사·신원사 3대 사찰을 품음. 봄 벚꽃과 가을 단풍이 유명. '닭 벼슬 모양'의 능선이 특색.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>대전 유성온천역에서 버스(107번, 40분). 공주·논산 시외버스도 가능. 자가용은 호남고속도로 계룡IC. 동학사·갑사 두 입구 모두 접근 용이.</span></div>
+        </div>
+        <h5>계룡산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">동학사 → 관음봉 → 삼불봉 → 신원사 (종주)</span><span class="c-info">편도 7km · 4~5h · 버스 연계 가능 · 대표 코스</span></div>
+          <div class="course-item"><span class="c-name">갑사 → 연천봉 → 삼불봉</span><span class="c-info">왕복 8km · 3~4h · 단풍길 명소 · 완만</span></div>
+          <div class="course-item"><span class="c-name">동학사 → 은선폭포 → 관음봉</span><span class="c-info">왕복 6km · 3h · 폭포 경유 · 초급 추천</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="wolak" data-region="chung">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="wolak"></td>
+        <td><strong>월악산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,097m</td><td>충북 제천</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>덕주사 → 영봉</td><td>5~6h</td><td>단풍, 가을 안개</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-wolak">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>충주호를 내려다보는 수직 암봉 영봉이 장관. 덕주사·미륵리 석불 등 문화유산 풍부. 산행 중 충주호 조망이 아름다움.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>충주시외버스터미널에서 수안보 방향 버스 후 택시. 자가용은 중앙고속도로 북충주IC → 597번 지방도. 수안보온천 숙박 후 산행 추천.</span></div>
+        </div>
+        <h5>월악산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">덕주사 → 영봉 (정상)</span><span class="c-info">왕복 8km · 5~6h · 암릉 구간 · 가파른 계단</span></div>
+          <div class="course-item"><span class="c-name">송계계곡 → 영봉</span><span class="c-info">왕복 9km · 5h · 계곡 경유 · 여름 추천</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="songnisan" data-region="chung">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="songnisan"></td>
+        <td><strong>속리산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,058m</td><td>충북 보은</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>법주사 → 천왕봉</td><td>5~6h</td><td>가을 단풍, 봄 꽃</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-songnisan">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>법주사(국보 미륵대불)를 품은 충북 명산. 문장대 조망이 탁월. 소나무·화강암 어우러진 경관. '속세를 떠난 산'이라는 뜻.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>서울남부터미널·강남터미널 → 속리산 직행버스(2.5h). 청주·대전에서도 버스 이용 가능. 자가용은 당진영덕고속도로 화북IC.</span></div>
+        </div>
+        <h5>속리산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">법주사 → 문장대</span><span class="c-info">왕복 8km · 4~5h · 조망 탁월 · 대표 코스</span></div>
+          <div class="course-item"><span class="c-name">법주사 → 천왕봉 (최고봉)</span><span class="c-info">왕복 10km · 5~6h · 정상 등정</span></div>
+          <div class="course-item"><span class="c-name">화북 → 문장대 → 천왕봉 (능선 종주)</span><span class="c-info">편도 12km · 6h · 속리산 주능선 전체</span></div>
+        </div>
+      </div></td></tr>
+
+      <!-- 경상 -->
+      <tr data-key="jiri" data-region="south">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="jiri"></td>
+        <td><strong>지리산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,915m</td><td>경남·전남·전북</td><td><span class="badge-diff diff-3">고급</span></td>
+        <td>노고단 → 천왕봉 종주</td><td>1박2일</td><td>5월 철쭉, 10월 단풍</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-jiri">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>한국 최초 국립공원(1967). 경남·전남·전북 3도에 걸친 방대한 산. 3대 영봉(천왕봉·반야봉·노고단). 세석평전 고원 초원, 5월 철쭉, 가을 단풍이 압도적.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>서울남부터미널 → 남원·구례·하동·산청 버스(3~4h). KTX 구례구역·남원역 이용 가능. 기점(성삼재·중산리·백무동·대원사)에 따라 진입로 상이.</span></div>
+        </div>
+        <h5>지리산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">성삼재 → 노고단 (당일)</span><span class="c-info">왕복 4.7km · 3~4h · 입문 코스 · 조망 탁월</span></div>
+          <div class="course-item"><span class="c-name">중산리 → 천왕봉 (당일)</span><span class="c-info">왕복 12km · 10~12h · 최고봉 직등 · 체력 요구</span></div>
+          <div class="course-item"><span class="c-name">백무동 → 장터목 → 천왕봉</span><span class="c-info">왕복 14km · 9~10h · 계곡 + 정상 · 장터목 대피소 경유</span></div>
+          <div class="course-item"><span class="c-name">노고단 ~ 천왕봉 주능선 종주 (1박2일)</span><span class="c-info">35.5km · 1박2일 · 장터목/세석 대피소 예약 필수</span></div>
+          <div class="course-item"><span class="c-name">대원사 → 천왕봉 (경남 산청 코스)</span><span class="c-info">왕복 16km · 9~10h · 조용한 코스 · 비교적 덜 알려짐</span></div>
+        </div>
+        <p style="margin-top:10px;color:#9b2226;font-size:11px;">⚠ 대피소 예약 필수 (국립공원 앱), 성수기 주말은 몇 주 전 매진</p>
+      </div></td></tr>
+
+      <tr data-key="deogyyu" data-region="south">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="deogyyu"></td>
+        <td><strong>덕유산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,614m</td><td>경남·전북</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>무주구천동 → 향적봉</td><td>6~7h</td><td>겨울 설경 (곤돌라 가능)</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-deogyyu">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>무주리조트 곤돌라로 1,520m까지 이동 가능한 유일한 국립공원 명산. 겨울 설경·눈꽃이 아름답고 무주구천동 33경도 유명.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>서울남부터미널 → 무주 버스(2.5h). KTX 김천(구미)역에서 무주행 버스 환승. 무주리조트 셔틀버스 운행(동절기). 자가용은 통영대전고속도로 무주IC.</span></div>
+        </div>
+        <h5>덕유산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">무주 리조트 곤돌라 → 설천봉 → 향적봉</span><span class="c-info">편도 1.5km · 1h · 설천봉(1,520m) 하차 후 도보 · 초급 가능</span></div>
+          <div class="course-item"><span class="c-name">무주구천동 → 향적봉</span><span class="c-info">왕복 12km · 6~7h · 계곡 경유 · 중급 · 경관 수려</span></div>
+          <div class="course-item"><span class="c-name">영각사 → 남덕유산 → 향적봉 (종주)</span><span class="c-info">편도 15km · 7~8h · 덕유산 전체 능선 · 고급</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="gaya" data-region="south">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="gaya"></td>
+        <td><strong>가야산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,430m</td><td>경남·경북</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>백운동 → 칠불봉</td><td>4~5h</td><td>단풍나무 숲 여름~가을</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-gaya">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>팔만대장경 보관 해인사 뒷산. 홍류동 단풍나무 계곡이 가을에 압도적. 우뚝 솟은 화강암 봉우리(칠불봉·상왕봉) 경관 독특.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>대구서부터미널 → 해인사 직행버스(1h). KTX 대구역에서 버스 환승. 고령·거창에서도 접근 가능. 자가용은 88고속도로 해인사IC.</span></div>
+        </div>
+        <h5>가야산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">백운동 → 칠불봉 → 상왕봉</span><span class="c-info">왕복 10km · 4~5h · 해인사 연계 가능 · 대표 코스</span></div>
+          <div class="course-item"><span class="c-name">성주 독용산성 → 상왕봉</span><span class="c-info">왕복 8km · 4h · 경북 성주 접근 · 조용한 코스</span></div>
+          <div class="course-item"><span class="c-name">용기골 → 상왕봉</span><span class="c-info">왕복 9km · 5h · 계곡 경유 · 여름 추천</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="palgong" data-region="south">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="palgong"></td>
+        <td><strong>팔공산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,193m</td><td>대구·경북</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>동화사 → 비로봉</td><td>5~6h</td><td>가을 단풍 ⭐</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-palgong">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>대구 북쪽 진산. 갓바위(관봉 석조여래좌상) 기도 명소. 케이블카 이용 가능. 2023년 국립공원 지정. 가을 단풍길 아름다움.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>대구 지하철 2호선 해안역에서 동화사 방향 버스. 대구 동부정류장에서 직행버스. 경산 방향은 경산역 버스 이용. 자가용은 팔공산IC.</span></div>
+        </div>
+        <h5>팔공산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">동화사 → 동봉 → 서봉 (능선)</span><span class="c-info">편도 8km · 4~5h · 팔공산 주능선 · 대표 코스</span></div>
+          <div class="course-item"><span class="c-name">팔공산 케이블카 → 동봉</span><span class="c-info">케이블카 이용 후 1h · 초급 가능 · 갓바위 연계</span></div>
+          <div class="course-item"><span class="c-name">파계사 → 서봉</span><span class="c-info">왕복 7km · 3~4h · 비교적 조용한 코스</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="juwang" data-region="south">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="juwang"></td>
+        <td><strong>주왕산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>721m</td><td>경북 청송</td><td><span class="badge-diff diff-1">초급</span></td>
+        <td>대전사 → 주봉</td><td>3~4h</td><td>가을 단풍 ⭐</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-juwang">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>경북의 소금강. 수직 기암절벽과 달기·용추·절구 폭포 경관. 가을 단풍 절경. 드라마·영화 촬영지. 주산지 왕버들 사진 명소.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>포항·안동에서 청송행 버스 후 주왕산 방향 환승. 서울에서는 동서울터미널 → 청송(3.5h). 대중교통 불편해 자가용 추천. 중앙고속도로 서안동IC.</span></div>
+        </div>
+        <h5>주왕산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">대전사 → 1·2·3폭포 코스</span><span class="c-info">왕복 7km · 3h · 계곡 폭포 · 초급 추천 · 가족 코스</span></div>
+          <div class="course-item"><span class="c-name">대전사 → 주봉 (정상)</span><span class="c-info">왕복 6km · 3~4h · 기암괴석 조망 탁월</span></div>
+          <div class="course-item"><span class="c-name">주산지 → 절골 코스</span><span class="c-info">왕복 8km · 4h · 연못 + 계곡 · 사진 명소</span></div>
+        </div>
+      </div></td></tr>
+
+      <!-- 전라 -->
+      <tr data-key="naejang" data-region="south">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="naejang"></td>
+        <td><strong>내장산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>763m</td><td>전북 정읍</td><td><span class="badge-diff diff-1">초급</span></td>
+        <td>내장사 → 신선봉</td><td>3~4h</td><td>10월 단풍 전국 최고</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-naejang">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>10월 하순~11월 초 단풍 전국 최고 명소. 내장사 계곡 단풍터널이 압도적. 백양사(고불총림) 인접. 케이블카로 능선까지 쉽게 이동 가능.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>KTX 정읍역에서 시내버스 내장산 방향(30분). 서울호남터미널 → 정읍 버스(2.5h). 단풍 시즌 주말은 극도로 혼잡해 평일 방문 강추.</span></div>
+        </div>
+        <h5>내장산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">내장사 → 서래봉 → 신선봉</span><span class="c-info">왕복 8km · 3~4h · 단풍 터널 경유 · 가을 최고</span></div>
+          <div class="course-item"><span class="c-name">내장사 케이블카 → 연자봉 → 신선봉</span><span class="c-info">케이블카 이용 후 1.5h · 초급 · 단풍 조망</span></div>
+          <div class="course-item"><span class="c-name">백양사 → 백학봉 → 사자봉</span><span class="c-info">왕복 7km · 4h · 내장산 남쪽 구역 · 조용함</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="wolchul" data-region="south">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="wolchul"></td>
+        <td><strong>월출산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>809m</td><td>전남 영암</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>천황사 → 천황봉</td><td>4~5h</td><td>봄 진달래, 기암괴석</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-wolchul">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>호남의 소금강. 기암괴석 암릉이 장관. 봄 진달래와 능선 조망이 아름다움. 천황봉 오르는 철계단이 독특한 경험. 해발 대비 체감 난이도 높음.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>목포역에서 영암행 버스 후 천황사·도갑사 방향(1시간). 광주에서 영암행 버스 이용. 자가용은 서해안고속도로 목포IC → 영암.</span></div>
+        </div>
+        <h5>월출산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">천황사 → 천황봉 (정상)</span><span class="c-info">왕복 6km · 4~5h · 암릉 구간 많음 · 손잡이·계단 설치</span></div>
+          <div class="course-item"><span class="c-name">도갑사 → 도솔봉 → 천황봉 (종주)</span><span class="c-info">편도 9km · 5h · 월출산 전체 능선 종주</span></div>
+        </div>
+      </div></td></tr>
+
+      <tr data-key="mudung" data-region="south">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="mudung"></td>
+        <td><strong>무등산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,187m</td><td>광주·전남</td><td><span class="badge-diff diff-2">중급</span></td>
+        <td>증심사 → 서석대</td><td>4~5h</td><td>봄 철쭉, 가을 억새</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-mudung">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>광주의 진산. 서석대·입석대 주상절리(천연기념물)가 압도적. 2013년 국립공원 지정. 봄 증심사 진달래, 가을 장불재 억새 명소.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>광주 시내버스(순환01·금남57번 등)로 증심사 입구까지 직접 이동 가능. 광주역·광주송정역에서 30~40분. 렌트카 불필요.</span></div>
+        </div>
+        <h5>무등산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">증심사 → 서석대 → 입석대</span><span class="c-info">왕복 9km · 4~5h · 주상절리 절경 · 대표 코스</span></div>
+          <div class="course-item"><span class="c-name">원효사 → 장불재 → 서석대</span><span class="c-info">왕복 10km · 4~5h · 북쪽 코스 · 억새 명소</span></div>
+          <div class="course-item"><span class="c-name">화순 수만리 → 규봉암 → 장불재</span><span class="c-info">왕복 8km · 4h · 남쪽 코스 · 조용함</span></div>
+        </div>
+      </div></td></tr>
+
+      <!-- 제주 -->
+      <tr data-key="halla" data-region="jeju">
+        <td class="col-check"><input type="checkbox" class="mt-check" data-key="halla"></td>
+        <td><strong>한라산</strong> <span style="font-size:11px;color:var(--muted)">▾</span></td>
+        <td>1,947m</td><td>제주도</td><td><span class="badge-diff diff-3">고급</span></td>
+        <td>성판악 → 백록담</td><td>9~10h</td><td>1~2월 설경, 10월 단풍</td>
+      </tr>
+      <tr class="course-row"><td colspan="8"><div class="course-detail" id="course-halla">
+        <div class="mt-info">
+          <div class="mt-info-row"><span class="mi-label">🌟 특색</span><span>한국 최고봉(1,947m). UNESCO 세계자연유산. 화산 분화구 백록담. 구상나무 군락. 1~2월 설경·눈꽃과 10월 단풍·억새가 모두 장관.</span></div>
+          <div class="mt-info-row"><span class="mi-label">🚌 교통</span><span>제주공항 → 성판악(181번 버스 40분) / 관음사(475번 버스 50분). 렌트카 이동이 가장 편리. 정상 코스는 탐방예약 시스템 사전 예약 필수.</span></div>
+        </div>
+        <h5>한라산 등산코스</h5>
+        <div class="course-list">
+          <div class="course-item"><span class="c-name">성판악 → 백록담 (정상)</span><span class="c-info">왕복 19.2km · 9~10h · 가장 대중적 · 완만한 숲길</span></div>
+          <div class="course-item"><span class="c-name">관음사 → 백록담</span><span class="c-info">왕복 17.4km · 9~10h · 경관 뛰어남 · 계곡 통과</span></div>
+          <div class="course-item"><span class="c-name">어리목 → 윗세오름 (정상 불가)</span><span class="c-info">왕복 9.4km · 4~5h · 초~중급 · 고산 초원 조망</span></div>
+          <div class="course-item"><span class="c-name">영실 → 윗세오름 → 어리목 (종주)</span><span class="c-info">편도 10km · 4~5h · 기암괴석 영실 기경 · 인기 코스</span></div>
+          <div class="course-item"><span class="c-name">돈내코 → 백록담</span><span class="c-info">왕복 18km · 9h · 남쪽 코스 · 비교적 한산</span></div>
+        </div>
+        <p style="margin-top:10px;color:#9b2226;font-size:11px;">⚠ 성판악·관음사 정상 코스는 국립공원 예약 필수 (탐방예약 시스템)</p>
+      </div></td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /panel-detail -->
+
+<div class="tab-panel" id="panel-list">
+<!-- 한국 50대 명산 컴팩트 목록 -->
+<div class="card full-width">
+  <div class="card-title"><div class="icon">📋</div> 한국 50대 명산 전체 목록 (체크리스트)</div>
+  <div class="filter-bar" id="compact-filter">
+    <button class="filter-btn active" data-region="all">전체</button>
+    <button class="filter-btn" data-region="seoul">서울·경기</button>
+    <button class="filter-btn" data-region="gangwon">강원</button>
+    <button class="filter-btn" data-region="chung">충청</button>
+    <button class="filter-btn" data-region="south">경상·전라</button>
+    <button class="filter-btn" data-region="jeju">제주</button>
+  </div>
+  <table class="compact-table">
+    <thead>
+      <tr>
+        <th class="col-check">완등</th>
+        <th class="sortable" data-sort="rank">#</th>
+        <th class="sortable" data-sort="name">산 이름</th>
+        <th class="sortable sort-asc" data-sort="height">높이</th>
+        <th class="sortable" data-sort="loc">위치</th>
+        <th class="sortable" data-sort="diff">난이도</th>
+        <th>특징</th>
+      </tr>
+    </thead>
+    <tbody id="compact-tbody">
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /panel-list -->
+
+<div class="tab-panel" id="panel-season">
+<!-- 시즌별 추천 -->
+<div class="card full-width">
+  <div class="card-title"><div class="icon">🗓</div> 시즌별 추천 등산</div>
+  <div class="seasons">
+    <div class="season-card spring"><h3>🌸 봄 (3~5월)</h3><ul>
+      <li>소백산 철쭉 — 5월 중순</li><li>지리산 노고단 — 4월 봄꽃</li>
+      <li>계룡산 — 봄 분무 아침 산행</li><li>추천 장비: 레인재킷</li>
+    </ul></div>
+    <div class="season-card summer"><h3>🌿 여름 (6~8월)</h3><ul>
+      <li>가야산 — 해인사 단풍나무 숲</li><li>오대산 — 시원한 고산 피서</li>
+      <li>이른 새벽 출발 필수</li><li>추천 장비: 방수 트레킹화</li>
+    </ul></div>
+    <div class="season-card fall"><h3>🍁 가을 (9~11월)</h3><ul>
+      <li>설악산 — 10월 전국 최고 단풍</li><li>내장산 — 10월 하순 단풍 절정</li>
+      <li>한라산 — 10월 단풍 + 억새</li><li>주말 혼잡 → 평일 추천</li>
+    </ul></div>
+    <div class="season-card winter"><h3>❄️ 겨울 (12~2월)</h3><ul>
+      <li>태백산 — 눈꽃 등산 성지</li><li>덕유산 — 곤돌라 + 설경</li>
+      <li>한라산 — 설경 (예약 필수)</li><li>추천 장비: 아이젠 필수</li>
+    </ul></div>
+  </div>
+</div>
+
+</div><!-- /panel-season -->
+
+</main>
+
+<script>
+// ── 날씨 ──
+const WMO = {
+  0:  ['☀️','맑음'],
+  1:  ['🌤','대체로 맑음'], 2: ['⛅','구름 조금'], 3: ['☁️','흐림'],
+  45: ['🌫','안개'], 48: ['🌫','안개'],
+  51: ['🌦','이슬비'], 53: ['🌦','이슬비'], 55: ['🌧','이슬비'],
+  61: ['🌧','비'], 63: ['🌧','비'], 65: ['🌧','강한 비'],
+  71: ['🌨','눈'], 73: ['🌨','눈'], 75: ['❄️','강한 눈'],
+  80: ['🌧','소나기'], 81: ['🌧','소나기'], 82: ['⛈','강한 소나기'],
+  95: ['⛈','뇌우'], 96: ['⛈','뇌우'], 99: ['⛈','뇌우'],
+};
+
+async function loadWeather() {
+  const widget = document.getElementById('weather-widget');
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, {timeout: 6000})
+    );
+    const {latitude: lat, longitude: lon} = pos.coords;
+
+    const [weatherRes, geoRes] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relative_humidity_2m&timezone=auto`),
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ko`)
+    ]);
+    const weather = await weatherRes.json();
+    const geo    = await geoRes.json();
+
+    const c    = weather.current;
+    const code = c.weathercode;
+    const [icon, desc] = WMO[code] || ['🌡','알 수 없음'];
+    const temp  = Math.round(c.temperature_2m);
+    const feel  = Math.round(c.apparent_temperature);
+    const wind  = Math.round(c.windspeed_10m);
+    const humid = c.relative_humidity_2m;
+
+    const addr = geo.address;
+    const city = addr.city || addr.county || addr.state || '';
+    const gu   = addr.borough || addr.suburb || addr.district || '';
+    const locStr = [city, gu].filter(Boolean).join(' ');
+
+    const now = new Date();
+    const dateStr = `${now.getMonth()+1}월 ${now.getDate()}일 ${now.getHours()}시 기준`;
+
+    widget.innerHTML = `
+      <div class="weather-location">📍 ${locStr || '현재 위치'}</div>
+      <div class="weather-icon">${icon}</div>
+      <div class="weather-desc">${desc}</div>
+      <div class="weather-temp">${temp}°C</div>
+      <div class="weather-meta">
+        <span>🌡 체감 ${feel}°C</span>
+        <span>💧 ${humid}%</span>
+        <span>💨 ${wind}m/s</span>
+      </div>
+      <div class="weather-date">${dateStr}</div>
+    `;
+  } catch (e) {
+    widget.innerHTML = `<div class="weather-loading">📍 위치 권한을 허용하면<br>날씨를 표시합니다</div>`;
+  }
+}
+loadWeather();
+
+// ── 코스 체크박스 ──
+const COURSE_KEY = 'hiking-courses-done';
+
+function getCoursesDone() {
+  try { return new Set(JSON.parse(localStorage.getItem(COURSE_KEY)) || []); }
+  catch { return new Set(); }
+}
+function saveCoursesDone(set) {
+  localStorage.setItem(COURSE_KEY, JSON.stringify([...set]));
+}
+
+function initCourseCheckboxes() {
+  document.querySelectorAll('.course-detail').forEach(detail => {
+    const mtKey = detail.id.replace('course-', '');
+    const h5 = detail.querySelector('h5');
+    if (h5) {
+      const counter = document.createElement('span');
+      counter.className = 'course-counter';
+      counter.id = 'cc-' + mtKey;
+      h5.appendChild(counter);
+    }
+    detail.querySelectorAll('.course-item').forEach((item, i) => {
+      const cKey = mtKey + '-' + i;
+      item.dataset.ckey = cKey;
+      // 기존 .c-name / .c-info 를 .c-text 래퍼로 감싸기
+      const name = item.querySelector('.c-name');
+      const info = item.querySelector('.c-info');
+      const wrap = document.createElement('div');
+      wrap.className = 'c-text';
+      if (name) wrap.appendChild(name);
+      if (info) wrap.appendChild(info);
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'course-check';
+      cb.dataset.ckey = cKey;
+      item.innerHTML = '';
+      item.appendChild(cb);
+      item.appendChild(wrap);
+    });
+  });
+}
+
+function applyCourseState() {
+  const done = getCoursesDone();
+  document.querySelectorAll('.course-check').forEach(cb => {
+    const k = cb.dataset.ckey;
+    cb.checked = done.has(k);
+    cb.closest('.course-item').classList.toggle('course-done', done.has(k));
+  });
+  // 코스별 카운터 업데이트
+  document.querySelectorAll('.course-detail').forEach(detail => {
+    const mtKey = detail.id.replace('course-', '');
+    const items = detail.querySelectorAll('.course-item');
+    const n = [...items].filter(it => done.has(it.dataset.ckey)).length;
+    const counter = document.getElementById('cc-' + mtKey);
+    if (counter) counter.textContent = n > 0 ? `(${n}/${items.length} 완등)` : `(${items.length}개 코스)`;
+    const cardCounter = document.getElementById('mtc-cc-' + mtKey);
+    if (cardCounter) cardCounter.textContent = n > 0 ? `${n}/${items.length} 완등` : `${items.length}개 코스`;
+  });
+}
+
+document.addEventListener('change', function(e) {
+  if (!e.target.classList.contains('course-check')) return;
+  e.stopPropagation();
+  const k = e.target.dataset.ckey;
+  const done = getCoursesDone();
+  e.target.checked ? done.add(k) : done.delete(k);
+  saveCoursesDone(done);
+  applyCourseState();
+});
+
+const STORAGE_KEY = 'hiking-checked';
+const TOTAL = 50;
+
+const MOUNTAINS_50 = [
+  // 서울·경기
+  {key:'gwanak',   rank:1,  name:'관악산',   h:'629m',    loc:'서울·경기',    region:'seoul',   diff:1, note:'도심 접근 편리 · 데일리 훈련'},
+  {key:'bukhan',   rank:2,  name:'북한산',   h:'836m',    loc:'서울·경기',    region:'seoul',   diff:2, note:'암릉 코스 · 비봉능선 절경'},
+  {key:'dobong',   rank:3,  name:'도봉산',   h:'740m',    loc:'서울·경기',    region:'seoul',   diff:2, note:'포대능선 · 봄 진달래'},
+  {key:'cheonggye',rank:4,  name:'청계산',   h:'618m',    loc:'경기 과천',    region:'seoul',   diff:1, note:'원터골 · 가족 코스'},
+  {key:'surak',    rank:5,  name:'수락산',   h:'638m',    loc:'서울 노원',    region:'seoul',   diff:1, note:'기차바위 전망'},
+  {key:'inwang',   rank:6,  name:'인왕산',   h:'338m',    loc:'서울 종로',    region:'seoul',   diff:1, note:'한양도성 · 도심 야경'},
+  {key:'yongmun',  rank:7,  name:'용문산',   h:'1,157m',  loc:'경기 양평',    region:'seoul',   diff:2, note:'은행나무 · 경기 최고봉'},
+  {key:'myeongseong',rank:8,name:'명성산',   h:'922m',    loc:'경기 포천',    region:'seoul',   diff:2, note:'억새밭 · 가을 명소'},
+  // 강원
+  {key:'seorak',   rank:9,  name:'설악산',   h:'1,708m',  loc:'강원 속초',    region:'gangwon', diff:3, note:'공룡능선 · 전국 최고 단풍'},
+  {key:'odae',     rank:10, name:'오대산',   h:'1,563m',  loc:'강원 평창',    region:'gangwon', diff:2, note:'전나무 숲 · 불교 성지'},
+  {key:'taebaek',  rank:11, name:'태백산',   h:'1,567m',  loc:'강원 태백',    region:'gangwon', diff:2, note:'눈꽃 성지 · 주목 군락'},
+  {key:'chiaksan', rank:12, name:'치악산',   h:'1,288m',  loc:'강원 원주',    region:'gangwon', diff:2, note:'구룡사 · 단풍'},
+  {key:'gyebang',  rank:13, name:'계방산',   h:'1,577m',  loc:'강원 평창',    region:'gangwon', diff:2, note:'오대산 인접 · 조용한 고봉'},
+  {key:'dutasan',  rank:14, name:'두타산',   h:'1,353m',  loc:'강원 동해',    region:'gangwon', diff:3, note:'무릉계곡 · 베틀바위 암릉'},
+  {key:'gariwang', rank:15, name:'가리왕산', h:'1,561m',  loc:'강원 정선',    region:'gangwon', diff:2, note:'원시림 · 희귀 고산식물'},
+  {key:'deokhan',  rank:16, name:'덕항산',   h:'1,071m',  loc:'강원 삼척',    region:'gangwon', diff:2, note:'환선굴 · 석회암 지형'},
+  // 충청
+  {key:'sobaek',   rank:17, name:'소백산',   h:'1,439m',  loc:'경북·충북',    region:'chung',   diff:2, note:'5월 철쭉 · 분무'},
+  {key:'gyeryong', rank:18, name:'계룡산',   h:'845m',    loc:'충남 공주',    region:'chung',   diff:1, note:'분무 · 동학사·갑사'},
+  {key:'songnisan',rank:19, name:'속리산',   h:'1,058m',  loc:'충북 보은',    region:'chung',   diff:2, note:'법주사 · 문장대 조망'},
+  {key:'wolak',    rank:20, name:'월악산',   h:'1,097m',  loc:'충북 제천',    region:'chung',   diff:2, note:'암봉 · 충주호 조망'},
+  {key:'geumsu',   rank:21, name:'금수산',   h:'1,016m',  loc:'충북 제천',    region:'chung',   diff:2, note:'얼음골 · 단풍'},
+  {key:'minjuji',  rank:22, name:'민주지산', h:'1,242m',  loc:'충북 영동',    region:'chung',   diff:2, note:'삼도봉 · 고산습지'},
+  {key:'chilgap',  rank:23, name:'칠갑산',   h:'561m',    loc:'충남 청양',    region:'chung',   diff:1, note:'충남의 알프스 · 완만'},
+  {key:'daedun',   rank:24, name:'대둔산',   h:'878m',    loc:'충남·전북',    region:'chung',   diff:2, note:'케이블카 · 기암괴석'},
+  // 경상
+  {key:'jiri',     rank:25, name:'지리산',   h:'1,915m',  loc:'경남·전남·전북',region:'south',  diff:3, note:'주능선 종주 · 철쭉'},
+  {key:'deogyyu',  rank:26, name:'덕유산',   h:'1,614m',  loc:'경남·전북',    region:'south',   diff:2, note:'곤돌라 · 겨울 설경'},
+  {key:'gaya',     rank:27, name:'가야산',   h:'1,430m',  loc:'경남·경북',    region:'south',   diff:2, note:'해인사 · 단풍나무 숲'},
+  {key:'palgong',  rank:28, name:'팔공산',   h:'1,193m',  loc:'대구·경북',    region:'south',   diff:2, note:'가을 단풍 · 갓바위'},
+  {key:'sinbul',   rank:29, name:'신불산',   h:'1,209m',  loc:'경남 울주',    region:'south',   diff:2, note:'영남알프스 · 억새 평원'},
+  {key:'jaeyak',   rank:30, name:'재약산',   h:'1,108m',  loc:'경남 밀양',    region:'south',   diff:2, note:'영남알프스 · 표충사'},
+  {key:'gajisan',  rank:31, name:'가지산',   h:'1,240m',  loc:'경남·울산',    region:'south',   diff:2, note:'영남알프스 최고봉'},
+  {key:'hwangmae', rank:32, name:'황매산',   h:'1,108m',  loc:'경남 합천',    region:'south',   diff:2, note:'철쭉 명소 · 합천호'},
+  {key:'juwang',   rank:33, name:'주왕산',   h:'721m',    loc:'경북 청송',    region:'south',   diff:1, note:'기암괴석 · 계곡 폭포'},
+  {key:'cheongnyangsan',rank:34,name:'청량산',h:'870m',   loc:'경북 봉화',    region:'south',   diff:2, note:'12봉 기암 · 퇴계 이황'},
+  {key:'geumosan', rank:35, name:'금오산',   h:'976m',    loc:'경북 구미',    region:'south',   diff:2, note:'도선굴 · 도립공원'},
+  // 전라·광주
+  {key:'naejang',  rank:36, name:'내장산',   h:'763m',    loc:'전북 정읍',    region:'south',   diff:1, note:'단풍 전국 1위 · 내장사'},
+  {key:'mudung',   rank:37, name:'무등산',   h:'1,187m',  loc:'광주·전남',    region:'south',   diff:2, note:'주상절리 · 광주 랜드마크'},
+  {key:'wolchul',  rank:38, name:'월출산',   h:'809m',    loc:'전남 영암',    region:'south',   diff:2, note:'암릉 장관 · 봄 진달래'},
+  {key:'maisan',   rank:39, name:'마이산',   h:'686m',    loc:'전북 진안',    region:'south',   diff:1, note:'말 귀 모양 기암 · 탑사'},
+  {key:'naejangsan2',rank:40,name:'조계산',  h:'887m',    loc:'전남 순창',    region:'south',   diff:1, note:'송광사·선암사 연계'},
+  {key:'seonun',   rank:41, name:'선운산',   h:'336m',    loc:'전북 고창',    region:'south',   diff:1, note:'동백꽃 · 선운사'},
+  {key:'cheonggwan',rank:42,name:'천관산',   h:'723m',    loc:'전남 장흥',    region:'south',   diff:1, note:'억새 · 기암괴석'},
+  {key:'jangansa', rank:43, name:'장안산',   h:'1,237m',  loc:'전북 장수',    region:'south',   diff:2, note:'금강 발원지 · 고원'},
+  {key:'paryeongsan',rank:44,name:'팔영산',  h:'609m',    loc:'전남 고흥',    region:'south',   diff:2, note:'8개 암봉 연속 · 다도해 조망'},
+  {key:'byeonsan', rank:45, name:'변산',     h:'508m',    loc:'전북 부안',    region:'south',   diff:1, note:'내변산 직소폭포 · 해안'},
+  // 제주 + 기타
+  {key:'halla',    rank:46, name:'한라산',   h:'1,947m',  loc:'제주',         region:'jeju',    diff:3, note:'한국 최고봉 · 설경·단풍'},
+  {key:'seonginsaeng',rank:47,name:'성인봉', h:'984m',    loc:'경북 울릉도',  region:'gangwon', diff:2, note:'울릉도 최고봉 · 원시림'},
+  {key:'duryunsan',rank:48, name:'두륜산',   h:'700m',    loc:'전남 해남',    region:'south',   diff:1, note:'대흥사 · 한반도 최남단'},
+  {key:'mihwangsan',rank:49,name:'미황산',   h:'683m',    loc:'전남 해남',    region:'south',   diff:1, note:'달마고도 · 남해 조망'},
+  {key:'odaesan2', rank:50, name:'태화산',   h:'1,027m',  loc:'충북 충주',    region:'chung',   diff:2, note:'강원·충북 경계 · 조용한 고봉'},
+];
+
+function getSaved() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function save(checked) { localStorage.setItem(STORAGE_KEY, JSON.stringify(checked)); }
+
+function updateProgress() {
+  const checked = getSaved();
+  const n = checked.length;
+  document.getElementById('done-count').textContent = n;
+  document.getElementById('progress-text').textContent = n + ' / ' + TOTAL;
+  document.getElementById('progress-bar').style.width = (n / TOTAL * 100) + '%';
+}
+
+// 50대 명산 컴팩트 테이블 렌더 + 정렬
+const sortState = { key: 'height', dir: 1 }; // dir: 1=asc, -1=desc
+
+function parseHeight(h) { return parseInt(h.replace(/[^0-9]/g, ''), 10); }
+
+function sortedMountains(region) {
+  let list = region === 'all' ? [...MOUNTAINS_50] : MOUNTAINS_50.filter(m => m.region === region);
+  list.sort((a, b) => {
+    let va, vb;
+    if (sortState.key === 'rank')   { va = a.rank;          vb = b.rank; }
+    else if (sortState.key === 'name')  { va = a.name;         vb = b.name; return sortState.dir * va.localeCompare(vb, 'ko'); }
+    else if (sortState.key === 'height'){ va = parseHeight(a.h); vb = parseHeight(b.h); }
+    else if (sortState.key === 'loc')  { va = a.loc;          vb = b.loc; return sortState.dir * va.localeCompare(vb, 'ko'); }
+    else if (sortState.key === 'diff') { va = a.diff;         vb = b.diff; }
+    else return 0;
+    return sortState.dir * (va - vb);
+  });
+  return list;
+}
+
+function renderCompact(region) {
+  region = region || document.querySelector('#compact-filter .filter-btn.active')?.dataset.region || 'all';
+  const tbody = document.getElementById('compact-tbody');
+  const diffLabel = ['', '초급', '중급', '고급'];
+  const diffClass = ['', 'diff-1', 'diff-2', 'diff-3'];
+  tbody.innerHTML = sortedMountains(region).map(m => `
+    <tr data-ckey="${m.key}" data-region="${m.region}">
+      <td class="col-check"><input type="checkbox" class="mt-check" data-key="${m.key}"></td>
+      <td class="rank">${m.rank}</td>
+      <td><strong>${m.name}</strong></td>
+      <td>${m.h}</td>
+      <td>${m.loc}</td>
+      <td><span class="badge-diff ${diffClass[m.diff]}">${diffLabel[m.diff]}</span></td>
+      <td style="color:var(--muted);font-size:12px">${m.note}</td>
+    </tr>
+  `).join('');
+}
+
+// 컬럼 헤더 클릭 → 정렬
+document.querySelector('.compact-table thead').addEventListener('click', function(e) {
+  const th = e.target.closest('th[data-sort]');
+  if (!th) return;
+  const key = th.dataset.sort;
+  if (sortState.key === key) sortState.dir *= -1;
+  else { sortState.key = key; sortState.dir = 1; }
+  this.querySelectorAll('th').forEach(t => t.classList.remove('sort-asc', 'sort-desc'));
+  th.classList.add(sortState.dir === 1 ? 'sort-asc' : 'sort-desc');
+  renderCompact();
+  applyState();
+});
+
+function applyState() {
+  const checked = getSaved();
+  document.querySelectorAll('.mt-check').forEach(cb => {
+    cb.checked = checked.includes(cb.dataset.key);
+  });
+  document.querySelectorAll('tr[data-key]').forEach(tr => {
+    tr.classList.toggle('done', checked.includes(tr.dataset.key));
+  });
+  document.querySelectorAll('.mt-card[data-key]').forEach(card => {
+    card.classList.toggle('done', checked.includes(card.dataset.key));
+  });
+  document.querySelectorAll('tr[data-ckey]').forEach(tr => {
+    tr.classList.toggle('done', checked.includes(tr.dataset.ckey));
+  });
+  document.querySelectorAll('.cl-label').forEach(lbl => {
+    lbl.classList.toggle('done', checked.includes(lbl.dataset.key));
+  });
+  updateProgress();
+}
+
+document.addEventListener('change', function(e) {
+  if (!e.target.classList.contains('mt-check')) return;
+  const key = e.target.dataset.key;
+  let checked = getSaved();
+  if (e.target.checked) { if (!checked.includes(key)) checked.push(key); }
+  else { checked = checked.filter(k => k !== key); }
+  save(checked);
+  applyState();
+});
+
+// 코스 상세 토글 (카드)
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.mtc-toggle');
+  if (!btn) return;
+  const card = btn.closest('.mt-card');
+  if (!card) return;
+  card.classList.toggle('expanded');
+  const detail = card.querySelector('.course-detail');
+  if (detail) detail.classList.toggle('open');
+});
+
+// 상세 카드 지역 필터
+document.getElementById('detail-filter').addEventListener('click', function(e) {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  this.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const region = btn.dataset.region;
+  document.querySelectorAll('.mt-card[data-key]').forEach(card => {
+    const show = region === 'all' || card.dataset.region === region;
+    card.classList.toggle('hidden-row', !show);
+    if (!show) {
+      card.classList.remove('expanded');
+      const d = card.querySelector('.course-detail');
+      if (d) d.classList.remove('open');
+    }
+  });
+});
+
+// 컴팩트 테이블 지역 필터
+document.getElementById('compact-filter').addEventListener('click', function(e) {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  this.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCompact(btn.dataset.region);
+  applyState();
+});
+
+function buildCardGrid() {
+  if (document.getElementById('mt-card-grid')) return;
+  const detailCard = document.getElementById('detail-filter')?.closest('.card');
+  if (!detailCard) return;
+  const tbl = detailCard.querySelector('table');
+  if (!tbl) return;
+
+  const grid = document.createElement('div');
+  grid.className = 'mt-grid';
+  grid.id = 'mt-card-grid';
+
+  const diffLabel = ['', '초급', '중급', '고급'];
+
+  detailCard.querySelectorAll('tr[data-key]').forEach(tr => {
+    const key = tr.dataset.key;
+    const region = tr.dataset.region;
+    const tds = tr.querySelectorAll('td');
+
+    const name = tds[1]?.querySelector('strong')?.textContent || '';
+    const height = tds[2]?.textContent.trim() || '';
+    const loc = tds[3]?.textContent.trim() || '';
+    const diffEl = tds[4]?.querySelector('.badge-diff');
+    let diffNum = 1;
+    if (diffEl) {
+      if (diffEl.classList.contains('diff-3')) diffNum = 3;
+      else if (diffEl.classList.contains('diff-2')) diffNum = 2;
+    }
+    const season = tds[7]?.textContent.trim() || '';
+
+    const courseDetail = document.getElementById('course-' + key);
+    const courseCount = courseDetail ? courseDetail.querySelectorAll('.course-item').length : 0;
+
+    const card = document.createElement('div');
+    card.className = `mt-card diff-${diffNum}`;
+    card.dataset.key = key;
+    card.dataset.region = region;
+
+    card.innerHTML = `
+      <div class="mtc-stripe"></div>
+      <div class="mtc-body">
+        <div class="mtc-header">
+          <label class="mtc-check-wrap">
+            <input type="checkbox" class="mt-check" data-key="${key}">
+            <span class="mtc-name">${name}</span>
+          </label>
+          <span class="badge-diff diff-${diffNum}">${diffLabel[diffNum]}</span>
+        </div>
+        <div class="mtc-height">${height}</div>
+        <div class="mtc-meta">
+          <span>📍 ${loc}</span>
+          <span>🌟 ${season}</span>
+        </div>
+      </div>
+      <button class="mtc-toggle" type="button">
+        <span class="mtc-toggle-left">등산 코스 <span class="mtc-course-count" id="mtc-cc-${key}">${courseCount}개 코스</span></span>
+        <span class="mtc-arrow">▼</span>
+      </button>
+    `;
+
+    if (courseDetail) card.appendChild(courseDetail);
+    grid.appendChild(card);
+  });
+
+  tbl.parentNode.insertBefore(grid, tbl);
+  tbl.style.display = 'none';
+}
+
+// 탭 전환
+document.querySelector('.tab-bar').addEventListener('click', function(e) {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  this.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  window.scrollTo(0, 0);
+});
+
+initCourseCheckboxes();
+buildCardGrid();
+applyCourseState();
+renderCompact();
+applyState();
+</script>
+
+</body>
+</html>
