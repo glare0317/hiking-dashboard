@@ -208,13 +208,13 @@
     <h1>🏔 한국 등산 계획 대시보드</h1>
     <p>한국의 명산을 단계별로 정복하는 나만의 등산 로드맵</p>
     <div class="stats">
-      <div class="stat-item"><span class="stat-num">50</span><span class="stat-label">목표 명산 수</span></div>
+      <div class="stat-item"><span class="stat-num" id="total-count">90</span><span class="stat-label">목표 명산 수</span></div>
       <div class="stat-item"><span class="stat-num" id="done-count">0</span><span class="stat-label">완등한 산</span></div>
       <div class="stat-item"><span class="stat-num">1,947m</span><span class="stat-label">최고봉 한라산</span></div>
       <div class="stat-item"><span class="stat-num">4단계</span><span class="stat-label">목표 레벨</span></div>
     </div>
     <div class="progress-wrap">
-      <div class="progress-label"><span>등반 진행률</span><span id="progress-text">0 / 50</span></div>
+      <div class="progress-label"><span>등반 진행률</span><span id="progress-text">0 / 90</span></div>
       <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar" style="width:0%"></div></div>
     </div>
   </div>
@@ -228,7 +228,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="home">🏠 홈</button>
     <button class="tab-btn" data-tab="detail">⛰ 추천 산</button>
-    <button class="tab-btn" data-tab="list">📋 50대 명산</button>
+    <button class="tab-btn" data-tab="list">📋 명산 목록</button>
     <button class="tab-btn" data-tab="season">🗓 시즌</button>
   </div>
 </div>
@@ -747,9 +747,9 @@
 </div><!-- /panel-detail -->
 
 <div class="tab-panel" id="panel-list">
-<!-- 한국 50대 명산 컴팩트 목록 -->
+<!-- 한국 명산 컴팩트 목록 -->
 <div class="card full-width">
-  <div class="card-title"><div class="icon">📋</div> 한국 50대 명산 전체 목록 (체크리스트)</div>
+  <div class="card-title"><div class="icon">📋</div> 한국 명산 전체 목록 (체크리스트)</div>
   <div class="filter-bar" id="compact-filter">
     <button class="filter-btn active" data-region="all">전체</button>
     <button class="filter-btn" data-region="seoul">서울·경기</button>
@@ -939,8 +939,6 @@ document.addEventListener('change', function(e) {
 });
 
 const STORAGE_KEY = 'hiking-checked';
-const TOTAL = 50;
-
 const MOUNTAINS_50 = [
   // 서울·경기
   {key:'gwanak',   rank:1,  name:'관악산',   h:'629m',    loc:'서울·경기',    region:'seoul',   diff:1, note:'도심 접근 편리 · 데일리 훈련'},
@@ -949,8 +947,52 @@ const MOUNTAINS_50 = [
   {key:'cheonggye',rank:4,  name:'청계산',   h:'618m',    loc:'경기 과천',    region:'seoul',   diff:1, note:'원터골 · 가족 코스'},
   {key:'surak',    rank:5,  name:'수락산',   h:'638m',    loc:'서울 노원',    region:'seoul',   diff:1, note:'기차바위 전망'},
   {key:'inwang',   rank:6,  name:'인왕산',   h:'338m',    loc:'서울 종로',    region:'seoul',   diff:1, note:'한양도성 · 도심 야경'},
-  {key:'yongmun',  rank:7,  name:'용문산',   h:'1,157m',  loc:'경기 양평',    region:'seoul',   diff:2, note:'은행나무 · 경기 최고봉'},
+  {key:'yongmun',  rank:7,  name:'용문산',   h:'1,157m',  loc:'경기 양평',    region:'seoul',   diff:2, note:'은행나무 · 경기 동부 고봉'},
   {key:'myeongseong',rank:8,name:'명성산',   h:'922m',    loc:'경기 포천',    region:'seoul',   diff:2, note:'억새밭 · 가을 명소'},
+  // 서울 (추가)
+  {key:'buram',    name:'불암산',   h:'508m',    loc:'서울 노원·남양주', region:'seoul', diff:1, note:'바위 정상 · 수락산 연계'},
+  {key:'bugak',    name:'북악산',   h:'342m',    loc:'서울 종로',    region:'seoul',   diff:1, note:'청와대 뒷산 · 한양도성'},
+  {key:'acha',     name:'아차산',   h:'296m',    loc:'서울 광진·구리', region:'seoul',  diff:1, note:'고구려 보루 · 일출 명소'},
+  {key:'yongma',   name:'용마산',   h:'348m',    loc:'서울 중랑·광진', region:'seoul',  diff:1, note:'아차산 연계 · 한강 조망'},
+  {key:'daemo',    name:'대모산',   h:'293m',    loc:'서울 강남',    region:'seoul',   diff:1, note:'완만한 숲길 · 구룡산 연계'},
+  {key:'guryong',  name:'구룡산',   h:'306m',    loc:'서울 서초·강남', region:'seoul',  diff:1, note:'대모산 연계 · 강남 조망'},
+  {key:'umyeon',   name:'우면산',   h:'293m',    loc:'서울 서초',    region:'seoul',   diff:1, note:'예술의전당 뒤 · 가벼운 산책'},
+  {key:'ansan',    name:'안산',     h:'296m',    loc:'서울 서대문',  region:'seoul',   diff:1, note:'무장애 자락길 · 메타세쿼이아 숲'},
+  {key:'namsan',   name:'남산',     h:'270m',    loc:'서울 중구',    region:'seoul',   diff:1, note:'N서울타워 · 도심 야경'},
+  {key:'samseong', name:'삼성산',   h:'481m',    loc:'서울 관악·안양', region:'seoul',  diff:1, note:'관악산 연계 · 삼막사'},
+  {key:'hoam',     name:'호암산',   h:'393m',    loc:'서울 금천',    region:'seoul',   diff:1, note:'호압사 · 석수역 접근'},
+  // 경기 북부
+  {key:'hwaak',    name:'화악산',   h:'1,468m',  loc:'경기 가평',    region:'seoul',   diff:2, note:'경기 최고봉 · 정상 군사시설(중봉까지)'},
+  {key:'myeongji', name:'명지산',   h:'1,267m',  loc:'경기 가평',    region:'seoul',   diff:2, note:'경기 2위 고봉 · 명지계곡'},
+  {key:'gukmang',  name:'국망봉',   h:'1,168m',  loc:'경기 포천·가평', region:'seoul',  diff:2, note:'한북정맥 · 겨울 눈꽃'},
+  {key:'yeonin',   name:'연인산',   h:'1,068m',  loc:'경기 가평',    region:'seoul',   diff:2, note:'5월 철쭉 · 용추계곡'},
+  {key:'unak',     name:'운악산',   h:'936m',    loc:'경기 가평·포천', region:'seoul',  diff:2, note:'경기 5악 · 암릉 · 현등사'},
+  {key:'baegun_pc',name:'백운산',   h:'904m',    loc:'경기 포천',    region:'seoul',   diff:2, note:'백운계곡 · 여름 계곡 산행'},
+  {key:'chukryeong',name:'축령산',  h:'886m',    loc:'경기 남양주·가평', region:'seoul', diff:1, note:'잣나무 휴양림 · 서리산 연계'},
+  {key:'seori',    name:'서리산',   h:'832m',    loc:'경기 남양주',  region:'seoul',   diff:1, note:'5월 철쭉 동산'},
+  {key:'godae',    name:'고대산',   h:'832m',    loc:'경기 연천',    region:'seoul',   diff:2, note:'경기 최북단 · 북녘 조망'},
+  {key:'cheonma',  name:'천마산',   h:'812m',    loc:'경기 남양주',  region:'seoul',   diff:2, note:'봄 야생화 · 수도권 근교 고봉'},
+  {key:'wangbang', name:'왕방산',   h:'737m',    loc:'경기 포천·동두천', region:'seoul', diff:1, note:'왕방사 · 조용한 능선'},
+  {key:'gamak',    name:'감악산',   h:'675m',    loc:'경기 파주·양주', region:'seoul',  diff:1, note:'출렁다리 · 경기 5악'},
+  {key:'homyeong', name:'호명산',   h:'632m',    loc:'경기 가평',    region:'seoul',   diff:1, note:'호명호수 · 청평 접근'},
+  {key:'soyo',     name:'소요산',   h:'587m',    loc:'경기 동두천',  region:'seoul',   diff:1, note:'경기 소금강 · 가을 단풍'},
+  {key:'sapae',    name:'사패산',   h:'552m',    loc:'경기 의정부·양주', region:'seoul', diff:1, note:'북한산국립공원 · 너럭바위 정상'},
+  {key:'bulgok',   name:'불곡산',   h:'470m',    loc:'경기 양주',    region:'seoul',   diff:1, note:'아기자기한 암릉 · 양주역 접근'},
+  // 경기 동부·남부
+  {key:'yumyeong', name:'유명산',   h:'862m',    loc:'경기 가평·양평', region:'seoul',  diff:1, note:'자연휴양림 · 억새 정상'},
+  {key:'yebong',   name:'예봉산',   h:'683m',    loc:'경기 남양주',  region:'seoul',   diff:1, note:'팔당 조망 · 운길산 연계'},
+  {key:'geomdan',  name:'검단산',   h:'657m',    loc:'경기 하남',    region:'seoul',   diff:1, note:'두물머리 조망 · 지하철 접근'},
+  {key:'ungil',    name:'운길산',   h:'610m',    loc:'경기 남양주',  region:'seoul',   diff:1, note:'수종사 · 두물머리 전망'},
+  {key:'gwanggyo', name:'광교산',   h:'582m',    loc:'경기 수원·용인', region:'seoul',  diff:1, note:'수원 진산 · 광교호수 연계'},
+  {key:'seoun',    name:'서운산',   h:'547m',    loc:'경기 안성',    region:'seoul',   diff:1, note:'석남사 · 청룡사'},
+  {key:'namhan',   name:'남한산(청량산)', h:'497m', loc:'경기 광주',  region:'seoul',   diff:1, note:'남한산성 성곽길 · 세계유산'},
+  {key:'suri',     name:'수리산',   h:'489m',    loc:'경기 군포·안양', region:'seoul',  diff:1, note:'태을봉 · 슬기봉 능선'},
+  {key:'morak',    name:'모락산',   h:'385m',    loc:'경기 의왕',    region:'seoul',   diff:1, note:'짧은 암릉 · 가벼운 훈련'},
+  {key:'sorae',    name:'소래산',   h:'299m',    loc:'경기 시흥',    region:'seoul',   diff:1, note:'마애보살입상 · 짧은 코스'},
+  // 인천
+  {key:'mani',     name:'마니산',   h:'472m',    loc:'인천 강화',    region:'seoul',   diff:1, note:'참성단 · 서해 조망'},
+  {key:'goryeo',   name:'고려산',   h:'436m',    loc:'인천 강화',    region:'seoul',   diff:1, note:'4월 진달래 군락'},
+  {key:'gyeyang',  name:'계양산',   h:'395m',    loc:'인천 계양',    region:'seoul',   diff:1, note:'인천 최고봉 · 계양역 접근'},
   // 강원
   {key:'seorak',   rank:9,  name:'설악산',   h:'1,708m',  loc:'강원 속초',    region:'gangwon', diff:3, note:'공룡능선 · 전국 최고 단풍'},
   {key:'odae',     rank:10, name:'오대산',   h:'1,563m',  loc:'강원 평창',    region:'gangwon', diff:2, note:'전나무 숲 · 불교 성지'},
@@ -999,6 +1041,8 @@ const MOUNTAINS_50 = [
   {key:'mihwangsan',rank:49,name:'미황산',   h:'683m',    loc:'전남 해남',    region:'south',   diff:1, note:'달마고도 · 남해 조망'},
   {key:'odaesan2', rank:50, name:'태화산',   h:'1,027m',  loc:'충북 충주',    region:'chung',   diff:2, note:'강원·충북 경계 · 조용한 고봉'},
 ];
+MOUNTAINS_50.forEach((m, i) => { m.rank = i + 1; });
+const TOTAL = MOUNTAINS_50.length;
 
 function getSaved() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -1009,12 +1053,13 @@ function save(checked) { localStorage.setItem(STORAGE_KEY, JSON.stringify(checke
 function updateProgress() {
   const checked = getSaved();
   const n = checked.length;
+  document.getElementById('total-count').textContent = TOTAL;
   document.getElementById('done-count').textContent = n;
   document.getElementById('progress-text').textContent = n + ' / ' + TOTAL;
   document.getElementById('progress-bar').style.width = (n / TOTAL * 100) + '%';
 }
 
-// 50대 명산 컴팩트 테이블 렌더 + 정렬
+// 명산 컴팩트 테이블 렌더 + 정렬
 const sortState = { key: 'height', dir: 1 }; // dir: 1=asc, -1=desc
 
 function parseHeight(h) { return parseInt(h.replace(/[^0-9]/g, ''), 10); }
