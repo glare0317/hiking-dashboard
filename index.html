@@ -21,18 +21,25 @@
     body { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
 
     /* ── 헤더 ── */
-    header { background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%); color: #fff; padding: 32px 40px 28px; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+    header { position: relative; overflow: hidden; color: #fff; padding: 36px 24px 150px;
+      background:
+        radial-gradient(circle at 78% 18%, rgba(255,236,179,0.22) 0, rgba(255,236,179,0) 22%),
+        linear-gradient(180deg, #14301f 0%, #1f4a33 55%, #2d6a4f 100%); }
+    .header-inner { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; }
     .header-left { flex: 1; min-width: 0; }
-    header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+    .header-eyebrow { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--green-pale); background: rgba(183,228,199,0.12); border: 1px solid rgba(183,228,199,0.3); border-radius: 99px; padding: 3px 12px; margin-bottom: 12px; }
+    header h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
     header p { margin-top: 6px; font-size: 14px; opacity: 0.75; }
-    header .stats { display: flex; gap: 32px; margin-top: 24px; flex-wrap: wrap; }
-    header .stat-item { display: flex; flex-direction: column; }
-    header .stat-num { font-size: 26px; font-weight: 700; color: var(--green-pale); }
-    header .stat-label { font-size: 12px; opacity: 0.7; margin-top: 2px; }
-    .progress-wrap { margin-top: 20px; max-width: 400px; }
-    .progress-label { font-size: 12px; opacity: 0.8; margin-bottom: 6px; display: flex; justify-content: space-between; }
-    .progress-bar-bg { height: 8px; background: rgba(255,255,255,0.2); border-radius: 99px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background: var(--green-pale); border-radius: 99px; transition: width 0.4s ease; }
+    header .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 150px)); gap: 12px; margin-top: 24px; }
+    header .stat-item { display: flex; flex-direction: column; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 14px 16px; backdrop-filter: blur(4px); }
+    header .stat-ic { font-size: 16px; margin-bottom: 6px; }
+    header .stat-num { font-size: 24px; font-weight: 700; color: var(--green-pale); line-height: 1.15; }
+    header .stat-label { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+    .progress-wrap { margin-top: 18px; max-width: 636px; }
+    .progress-label { font-size: 12px; opacity: 0.85; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .progress-bar-bg { height: 10px; background: rgba(255,255,255,0.18); border-radius: 99px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--green-light), var(--green-pale)); border-radius: 99px; transition: width 0.4s ease; }
+    .header-ridges { position: absolute; left: 0; right: 0; bottom: -1px; width: 100%; height: 170px; z-index: 0; pointer-events: none; }
 
     /* ── 날씨 위젯 ── */
     .weather-widget { flex-shrink: 0; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 20px 24px; min-width: 200px; text-align: center; backdrop-filter: blur(4px); }
@@ -200,7 +207,11 @@
     @media (max-width: 900px) {
       #panel-home.active { grid-template-columns: 1fr !important; }
       .seasons { grid-template-columns: 1fr 1fr; }
-      header { flex-direction: column; padding: 24px 20px 20px; }
+      header { padding: 24px 16px 110px; }
+      .header-inner { flex-direction: column; gap: 20px; }
+      header h1 { font-size: 24px; }
+      header .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .header-ridges { height: 120px; }
       .weather-widget { width: 100%; }
       .tab-btn { padding: 12px 14px; font-size: 13px; }
     }
@@ -209,25 +220,37 @@
 <body>
 
 <header>
-  <div class="header-left">
-    <h1>🏔 한국 등산 계획 대시보드</h1>
-    <p>한국의 명산을 단계별로 정복하는 나만의 등산 로드맵</p>
-    <div class="stats">
-      <div class="stat-item"><span class="stat-num" id="total-count">90</span><span class="stat-label">목표 명산 수</span></div>
-      <div class="stat-item"><span class="stat-num" id="done-count">0</span><span class="stat-label">완등한 산</span></div>
-      <div class="stat-item"><span class="stat-num">1,947m</span><span class="stat-label">최고봉 한라산</span></div>
-      <div class="stat-item"><span class="stat-num">4단계</span><span class="stat-label">목표 레벨</span></div>
+  <div class="header-inner">
+    <div class="header-left">
+      <span class="header-eyebrow">MY HIKING ROADMAP</span>
+      <h1>🏔 한국 등산 계획 대시보드</h1>
+      <p>한국의 명산을 단계별로 정복하는 나만의 등산 로드맵</p>
+      <div class="stats">
+        <div class="stat-item"><span class="stat-ic">🎯</span><span class="stat-num" id="total-count">90</span><span class="stat-label">목표 명산 수</span></div>
+        <div class="stat-item"><span class="stat-ic">🚩</span><span class="stat-num" id="done-count">0</span><span class="stat-label">완등한 산</span></div>
+        <div class="stat-item"><span class="stat-ic">⛰</span><span class="stat-num">1,947m</span><span class="stat-label">최고봉 한라산</span></div>
+        <div class="stat-item"><span class="stat-ic">🧗</span><span class="stat-num">4단계</span><span class="stat-label">목표 레벨</span></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-label"><span>등반 진행률</span><span id="progress-text">0 / 90</span></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar" style="width:0%"></div></div>
+      </div>
     </div>
-    <div class="progress-wrap">
-      <div class="progress-label"><span>등반 진행률</span><span id="progress-text">0 / 90</span></div>
-      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar" style="width:0%"></div></div>
+
+    <div class="weather-widget" id="weather-widget">
+      <div class="weather-loading">📡 날씨 불러오는 중…</div>
     </div>
   </div>
 
-  <div class="weather-widget" id="weather-widget">
-    <div class="weather-loading">📡 날씨 불러오는 중…</div>
-  </div>
+  <!-- 겹겹이 이어지는 산 능선 (맨 앞 능선은 아래 탭 바와 같은 흰색이라 자연스럽게 이어져요) -->
+  <svg class="header-ridges" viewBox="0 0 1440 170" preserveAspectRatio="none" aria-hidden="true">
+    <path fill="rgba(183,228,199,0.14)" d="M0 92 L90 58 L170 80 L260 30 L340 66 L430 44 L520 84 L610 22 L700 62 L790 40 L880 78 L980 18 L1070 60 L1160 36 L1250 72 L1340 28 L1440 56 L1440 170 L0 170 Z"/>
+    <path fill="rgba(82,183,136,0.30)" d="M0 120 L120 84 L210 108 L320 70 L420 104 L540 76 L640 112 L760 66 L860 100 L970 78 L1080 114 L1190 72 L1300 102 L1440 80 L1440 170 L0 170 Z"/>
+    <path fill="rgba(26,58,42,0.55)" d="M0 146 L150 118 L280 138 L420 110 L560 140 L700 116 L840 144 L980 112 L1120 140 L1260 120 L1440 138 L1440 170 L0 170 Z"/>
+    <path fill="#ffffff" d="M0 162 C200 150 360 166 560 156 C760 146 920 166 1120 154 C1260 147 1360 158 1440 152 L1440 170 L0 170 Z"/>
+  </svg>
 </header>
+
 
 <div class="tab-bar-wrap">
   <div class="tab-bar">
