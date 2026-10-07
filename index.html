@@ -167,6 +167,11 @@
     .compact-table thead th.sort-desc::after { content: ' ▼'; opacity: 0.9; }
     .compact-table tbody td { padding: 7px 10px; }
     .compact-table .rank { color: var(--muted); font-size: 11px; }
+    .mt-search { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .mt-search input { flex: 1; min-width: 200px; max-width: 360px; padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 99px; font: inherit; font-size: 13px; background: #fff; }
+    .mt-search input:focus { outline: none; border-color: var(--green-light); }
+    .mt-search .count { font-size: 12px; color: var(--muted); }
+    .compact-table .empty td { text-align: center; color: var(--muted); padding: 20px; }
 
     /* ── 특색·교통 인포 블록 ── */
     .mt-info { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid var(--border); }
@@ -750,6 +755,10 @@
 <!-- 한국 명산 컴팩트 목록 -->
 <div class="card full-width">
   <div class="card-title"><div class="icon">📋</div> 한국 명산 전체 목록 (체크리스트)</div>
+  <div class="mt-search">
+    <input type="search" id="mt-search" placeholder="🔍 산 이름으로 찾기 (예: 북한산)" aria-label="산 이름 검색">
+    <span class="count" id="mt-search-count"></span>
+  </div>
   <div class="filter-bar" id="compact-filter">
     <button class="filter-btn active" data-region="all">전체</button>
     <button class="filter-btn" data-region="seoul">서울·경기</button>
@@ -1084,7 +1093,20 @@ function renderCompact(region) {
   const tbody = document.getElementById('compact-tbody');
   const diffLabel = ['', '초급', '중급', '고급'];
   const diffClass = ['', 'diff-1', 'diff-2', 'diff-3'];
-  tbody.innerHTML = sortedMountains(region).map(m => `
+  // 검색어는 띄어쓰기를 무시하고 산 이름에 들어 있는지로 찾아요
+  const q = document.getElementById('mt-search').value.replace(/\s/g, '');
+  const list = sortedMountains(region).filter(m => !q || m.name.includes(q));
+  document.getElementById('mt-search-count').textContent = q ? `${list.length}곳 찾았어요` : '';
+  if (!list.length) {
+    const qs = q.replace(/[<>&"]/g, '');
+    const elsewhere = q && region !== 'all' && MOUNTAINS_50.some(m => m.name.includes(q));
+    tbody.innerHTML = `<tr class="empty"><td colspan="7">${
+      !q ? '이 지역에는 산이 없어요'
+      : elsewhere ? `'${qs}'(이)가 들어간 산은 다른 지역에 있어요. 위에서 '전체'를 눌러 보세요`
+      : `'${qs}'(이)가 들어간 산이 목록에 없어요`}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(m => `
     <tr data-ckey="${m.key}" data-region="${m.region}">
       <td class="col-check"><input type="checkbox" class="mt-check" data-key="${m.key}"></td>
       <td class="rank">${m.rank}</td>
@@ -1096,6 +1118,12 @@ function renderCompact(region) {
     </tr>
   `).join('');
 }
+
+// 산 이름 검색 → 입력할 때마다 바로 목록을 줄여요
+document.getElementById('mt-search').addEventListener('input', function() {
+  renderCompact();
+  applyState();
+});
 
 // 컬럼 헤더 클릭 → 정렬
 document.querySelector('.compact-table thead').addEventListener('click', function(e) {
