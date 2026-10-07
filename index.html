@@ -174,6 +174,17 @@
     .compact-table thead th.sort-desc::after { content: ' ▼'; opacity: 0.9; }
     .compact-table tbody td { padding: 7px 10px; }
     .compact-table .rank { color: var(--muted); font-size: 11px; }
+    /* ── 즐겨찾기 ── */
+    .col-fav { width: 40px; text-align: center; }
+    .compact-table th.col-check, .compact-table th.col-fav { white-space: nowrap; }
+    .fav-btn { border: none; background: none; cursor: pointer; font-size: 18px; line-height: 1; color: #c4c9d0; padding: 2px 4px; border-radius: 6px; transition: transform 0.15s, color 0.15s; }
+    .fav-btn:hover { color: #f43f5e; transform: scale(1.15); }
+    .fav-btn.on { color: #f43f5e; }
+    .fav-count { display: inline-block; min-width: 20px; margin-left: 2px; padding: 0 6px; border-radius: 99px; background: #ffe4e6; color: #e11d48; font-size: 11px; line-height: 18px; }
+    .card-sub { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 4px; }
+    .mt-card.not-fav { display: none; }
+    .mtc-note { padding: 10px 16px; background: var(--cream); border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+    .fav-empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 40px 16px; font-size: 14px; line-height: 1.8; }
     .mt-search { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
     .mt-search input { flex: 1; min-width: 200px; max-width: 360px; padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 99px; font: inherit; font-size: 13px; background: #fff; }
     .mt-search input:focus { outline: none; border-color: var(--green-light); }
@@ -255,7 +266,7 @@
 <div class="tab-bar-wrap">
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="home">🏠 홈</button>
-    <button class="tab-btn" data-tab="detail">⛰ 추천 산</button>
+    <button class="tab-btn" data-tab="detail">❤️ 즐겨찾기 산 <span class="fav-count" id="fav-count"></span></button>
     <button class="tab-btn" data-tab="list">📋 명산 목록</button>
     <button class="tab-btn" data-tab="season">🗓 시즌</button>
   </div>
@@ -293,7 +304,7 @@
 <div class="tab-panel" id="panel-detail">
 <!-- 상세 정보 테이블 -->
 <div class="card full-width">
-  <div class="card-title"><div class="icon">⛰</div> 추천 산 상세 정보 (클릭 → 코스 펼치기)</div>
+  <div class="card-title"><div class="icon">❤️</div> 즐겨찾기 산 <span class="card-sub">명산 목록에서 ♡를 누르면 여기에 모여요 · 아래 막대를 누르면 코스가 펼쳐져요</span></div>
   <div class="filter-bar" id="detail-filter">
     <button class="filter-btn active" data-region="all">전체</button>
     <button class="filter-btn" data-region="seoul">서울·경기</button>
@@ -793,6 +804,7 @@
   <table class="compact-table">
     <thead>
       <tr>
+        <th class="col-fav" title="즐겨찾기">♥</th>
         <th class="col-check">완등</th>
         <th class="sortable" data-sort="rank">#</th>
         <th class="sortable" data-sort="name">산 이름</th>
@@ -1123,7 +1135,7 @@ function renderCompact(region) {
   if (!list.length) {
     const qs = q.replace(/[<>&"]/g, '');
     const elsewhere = q && region !== 'all' && MOUNTAINS_50.some(m => m.name.includes(q));
-    tbody.innerHTML = `<tr class="empty"><td colspan="7">${
+    tbody.innerHTML = `<tr class="empty"><td colspan="8">${
       !q ? '이 지역에는 산이 없어요'
       : elsewhere ? `'${qs}'(이)가 들어간 산은 다른 지역에 있어요. 위에서 '전체'를 눌러 보세요`
       : `'${qs}'(이)가 들어간 산이 목록에 없어요`}</td></tr>`;
@@ -1131,6 +1143,7 @@ function renderCompact(region) {
   }
   tbody.innerHTML = list.map(m => `
     <tr data-ckey="${m.key}" data-region="${m.region}">
+      <td class="col-fav"><button type="button" class="fav-btn" data-fav="${m.key}" aria-label="${m.name} 즐겨찾기">♡</button></td>
       <td class="col-check"><input type="checkbox" class="mt-check" data-key="${m.key}"></td>
       <td class="rank">${m.rank}</td>
       <td><strong>${m.name}</strong></td>
@@ -1162,6 +1175,7 @@ document.querySelector('.compact-table thead').addEventListener('click', functio
 });
 
 function applyState() {
+  applyFavs();
   const checked = getSaved();
   document.querySelectorAll('.mt-check').forEach(cb => {
     cb.checked = checked.includes(cb.dataset.key);
@@ -1218,6 +1232,7 @@ document.getElementById('detail-filter').addEventListener('click', function(e) {
       if (d) d.classList.remove('open');
     }
   });
+  applyFavs();
 });
 
 // 컴팩트 테이블 지역 필터
@@ -1276,6 +1291,7 @@ function buildCardGrid() {
             <span class="mtc-name">${name}</span>
           </label>
           <span class="badge-diff diff-${diffNum}">${diffLabel[diffNum]}</span>
+          <button type="button" class="fav-btn" data-fav="${key}" aria-label="${name} 즐겨찾기">♡</button>
         </div>
         <div class="mtc-height">${height}</div>
         <div class="mtc-meta">
@@ -1296,6 +1312,96 @@ function buildCardGrid() {
   tbl.parentNode.insertBefore(grid, tbl);
   tbl.style.display = 'none';
 }
+
+// ── 즐겨찾기 산 ──
+// 명산 목록에서 ♡를 누른 산만 즐겨찾기 탭에 보여요.
+// 처음에는 원래 '추천 산'이던 산들(코스 정보가 있는 산)이 모두 즐겨찾기로 들어가 있어요.
+const FAV_KEY = 'hiking-favorites';
+function getFavs() {
+  try {
+    const v = JSON.parse(localStorage.getItem(FAV_KEY));
+    if (Array.isArray(v)) return v;
+  } catch {}
+  return [...document.querySelectorAll('#mt-card-grid .mt-card[data-key]:not(.fav-simple)')].map(c => c.dataset.key);
+}
+function saveFavs(favs) { try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch {} }
+
+// 코스 정보가 없는 산은 명산 목록의 정보로 간단한 카드를 만들어요
+function simpleCard(m) {
+  const diffLabel = ['', '초급', '중급', '고급'];
+  const card = document.createElement('div');
+  card.className = `mt-card diff-${m.diff} fav-simple`;
+  card.dataset.key = m.key;
+  card.dataset.region = m.region;
+  card.innerHTML = `
+    <div class="mtc-stripe"></div>
+    <div class="mtc-body">
+      <div class="mtc-header">
+        <label class="mtc-check-wrap">
+          <input type="checkbox" class="mt-check" data-key="${m.key}">
+          <span class="mtc-name">${m.name}</span>
+        </label>
+        <span class="badge-diff diff-${m.diff}">${diffLabel[m.diff]}</span>
+        <button type="button" class="fav-btn" data-fav="${m.key}" aria-label="${m.name} 즐겨찾기">♡</button>
+      </div>
+      <div class="mtc-height">${m.h}</div>
+      <div class="mtc-meta">
+        <span>📍 ${m.loc}</span>
+        <span>🌟 ${m.note}</span>
+      </div>
+    </div>
+    <div class="mtc-note">등산 코스 정보는 아직 없어요</div>
+  `;
+  return card;
+}
+
+function applyFavs() {
+  const grid = document.getElementById('mt-card-grid');
+  if (!grid) return;
+  const favs = getFavs();
+  // 새로 ♡한 산 중 카드가 없는 산은 카드를 만들고, ♡를 뺀 간단 카드는 지워요
+  const region = document.querySelector('#detail-filter .filter-btn.active')?.dataset.region || 'all';
+  favs.forEach(key => {
+    if (grid.querySelector(`.mt-card[data-key="${key}"]`)) return;
+    const m = MOUNTAINS_50.find(x => x.key === key);
+    if (!m) return;
+    const card = simpleCard(m);
+    card.classList.toggle('hidden-row', region !== 'all' && m.region !== region);
+    grid.insertBefore(card, document.getElementById('fav-empty'));
+  });
+  grid.querySelectorAll('.mt-card.fav-simple').forEach(c => { if (!favs.includes(c.dataset.key)) c.remove(); });
+  grid.querySelectorAll('.mt-card[data-key]').forEach(c => c.classList.toggle('not-fav', !favs.includes(c.dataset.key)));
+  document.querySelectorAll('.fav-btn').forEach(b => {
+    const on = favs.includes(b.dataset.fav);
+    b.classList.toggle('on', on);
+    b.textContent = on ? '♥' : '♡';
+    b.title = on ? '즐겨찾기에서 빼기' : '즐겨찾기에 넣기';
+  });
+  document.getElementById('fav-count').textContent = favs.length;
+  // 보이는 카드가 없으면 안내 문구를 보여요
+  let empty = document.getElementById('fav-empty');
+  if (!empty) {
+    empty = document.createElement('div');
+    empty.id = 'fav-empty'; empty.className = 'fav-empty';
+    grid.appendChild(empty);
+  }
+  const visible = grid.querySelectorAll('.mt-card[data-key]:not(.not-fav):not(.hidden-row)').length;
+  empty.style.display = visible ? 'none' : '';
+  empty.innerHTML = favs.length
+    ? '이 지역에는 즐겨찾기한 산이 없어요.<br>위에서 \'전체\'를 눌러 보세요.'
+    : '아직 즐겨찾기한 산이 없어요.<br>📋 명산 목록에서 ♡를 눌러 가고 싶은 산을 모아 보세요.';
+}
+
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.fav-btn');
+  if (!btn) return;
+  e.preventDefault();
+  const key = btn.dataset.fav;
+  let favs = getFavs();
+  favs = favs.includes(key) ? favs.filter(k => k !== key) : [...favs, key];
+  saveFavs(favs);
+  applyState();
+});
 
 // 탭 전환
 document.querySelector('.tab-bar').addEventListener('click', function(e) {
